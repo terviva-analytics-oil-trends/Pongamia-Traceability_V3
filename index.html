@@ -1,0 +1,2399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pongamia Field Procurement & Traceability Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    .tab-active { border-bottom: 3px solid #047857; color: #047857; font-weight: bold; }
+    @media print { .no-print { display: none !important; } }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-900">
+
+  <!-- Webhook Missing Warning Banner -->
+  <div id="webhookAlertBanner" class="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold flex justify-between items-center hidden no-print">
+    <span>⚠️ CLOUD SYNC NOT CONFIGURED ON THIS DEVICE: Paste your Google Sheet Webhook URL in Tab 3 to enable live team sheet sharing!</span>
+    <button onclick="switchTab('sync')" class="bg-slate-900 text-white px-2 py-1 rounded text-[10px] uppercase font-extrabold">Setup Tab 3</button>
+  </div>
+
+  <!-- Main Header -->
+  <header class="bg-emerald-900 text-white p-3 px-4 shadow-md flex justify-between items-center flex-wrap gap-2">
+    <div>
+      <h1 class="text-lg font-bold tracking-tight">Pongamia Field Procurement & Traceability Engine</h1>
+      <p class="text-[11px] text-emerald-200">Developed by Chethan H C, JM Proc. Karnataka</p>
+      <p class="text-[10px] text-emerald-300 font-mono" id="versionMarker">App: v1.2 &middot; Backend: checking&hellip;</p>
+    </div>
+    <div class="flex items-center space-x-2">
+      <!-- Unit Selection -->
+      <div class="flex items-center bg-emerald-800 px-2 py-1 rounded text-xs space-x-1 border border-emerald-700">
+        <label for="unitSelect" class="font-medium text-emerald-100 text-[11px]">Unit:</label>
+        <select id="unitSelect" onchange="changeUnit(this.value)" class="bg-emerald-950 text-white font-bold px-1.5 py-0.5 rounded text-xs focus:outline-none">
+          <option value="KG" selected>KG</option>
+          <option value="MT">MT (Metric Tonnes)</option>
+        </select>
+      </div>
+
+      <!-- Compact Guide Modal Trigger -->
+      <button onclick="toggleGuideModal()" class="bg-emerald-800 hover:bg-emerald-700 border border-emerald-600 text-xs px-2.5 py-1.5 rounded text-emerald-100 font-bold flex items-center space-x-1">
+        <span>ℹ️ Guide</span>
+      </button>
+
+      <span id="pendingSyncBadge" class="hidden bg-amber-500 text-slate-950 text-xs px-2.5 py-1.5 rounded font-bold animate-pulse"></span>
+
+      <button onclick="fetchCloudLedger()" class="bg-emerald-700 hover:bg-emerald-600 text-xs px-2.5 py-1.5 rounded text-white font-bold flex items-center space-x-1">
+        <span>🔄 Sync Team Traceability Sheets</span>
+      </button>
+      <button onclick="clearAllLogs()" class="bg-red-700 hover:bg-red-800 text-xs px-2 py-1.5 rounded text-white font-medium">Clear Cache</button>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <div class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-20 no-print">
+    <div class="max-w-7xl mx-auto flex space-x-8 px-4">
+      <button onclick="switchTab('log')" id="tab-log" class="py-3 px-2 tab-active">1. Log Sourcing Transaction</button>
+      <button onclick="switchTab('search')" id="tab-search" class="py-3 px-2 text-gray-500 hover:text-emerald-700">2. Traceability Search & Audit</button>
+      <button onclick="switchTab('summary')" id="tab-summary" class="py-3 px-2 text-gray-500 hover:text-emerald-700">3. Summary & Reports</button>
+      <button onclick="switchTab('sync')" id="tab-sync" class="py-3 px-2 text-gray-500 hover:text-emerald-700">4. Cloud Sync Setup</button>
+    </div>
+  </div>
+
+  <!-- Compact Guide Modal -->
+  <div id="guideModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl max-w-xl w-full mx-4 max-h-[90vh] overflow-y-auto p-5 border border-emerald-200">
+      <div class="flex justify-between items-center border-b pb-2 mb-3">
+        <h3 class="text-sm font-bold text-emerald-900 flex items-center space-x-1">
+          <span>ℹ️ System Quick Operational Guide</span>
+        </h3>
+        <button onclick="toggleGuideModal()" class="text-gray-400 hover:text-gray-700 text-base font-bold">✕</button>
+      </div>
+      <div class="space-y-3 text-xs text-gray-700 leading-relaxed">
+        <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+          <h4 class="font-bold text-emerald-900 uppercase mb-1">Tab 1: Log Sourcing Transaction</h4>
+          <ul class="list-disc pl-4 space-y-1 text-[11px]">
+            <li><strong>Add New Village:</strong> Click <em>➕ Add New Village</em> in the table header to register non-surveyed locations.</li>
+            <li><strong>Vendor Signature Upload:</strong> Signatures can be uploaded during logging or attached later in Tab 2.</li>
+          </ul>
+        </div>
+        <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+          <h4 class="font-bold text-blue-900 uppercase mb-1">Tab 2: Audit & Late Signature Attachment</h4>
+          <ul class="list-disc pl-4 space-y-1 text-[11px]">
+            <li><strong>Retroactive Signature Update:</strong> Select a vendor and click <em>✏️ Upload Vendor Signature</em> to apply a signature image to all existing sheets for that vendor globally.</li>
+            <li><strong>Protected Deletion:</strong> Requires Junior Manager Security PIN (`1234`).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="mt-4 text-right">
+        <button onclick="toggleGuideModal()" class="bg-emerald-800 text-white text-xs px-4 py-1.5 rounded font-bold hover:bg-emerald-900">Close Guide</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIMPLIFIED ADD / MANAGE NON-SURVEYED VILLAGE MODAL -->
+  <div id="newVillageModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden no-print">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-5 border border-amber-300 space-y-4">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="text-sm font-bold text-amber-900 uppercase flex items-center space-x-1">
+          <span>➕ Add / Manage Non-Surveyed Village</span>
+        </h3>
+        <button onclick="toggleNewVillageModal()" class="text-gray-400 hover:text-gray-700 text-base font-bold">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="space-y-2">
+          <h4 class="font-bold text-amber-900 uppercase text-[11px]">Enter Village Details</h4>
+          <div>
+            <label class="block text-gray-600 font-medium">Village Name *</label>
+            <input type="text" id="nsVillageName" placeholder="e.g. Ramanagara" oninput="autoCapitalize(this)" class="border rounded p-2 w-full mt-0.5">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-gray-600 font-medium">District *</label>
+              <input type="text" id="nsDistrict" list="nsDistrictDatalist" placeholder="e.g. Tumakuru" oninput="autoCapitalize(this)" class="border rounded p-2 w-full mt-0.5">
+              <datalist id="nsDistrictDatalist"></datalist>
+            </div>
+            <div>
+              <label class="block text-gray-600 font-medium">Block / Taluk *</label>
+              <input type="text" id="nsBlock" list="nsBlockDatalist" placeholder="e.g. Sira" oninput="autoCapitalize(this)" class="border rounded p-2 w-full mt-0.5">
+              <datalist id="nsBlockDatalist"></datalist>
+            </div>
+          </div>
+          <div>
+            <label class="block text-amber-900 font-bold">Procured Qty from Vendor (<span class="unitLbl">KG</span>)</label>
+            <input type="number" step="any" id="nsProcuredQty" placeholder="e.g. 500" class="border border-amber-400 bg-amber-50 rounded p-2 w-full mt-0.5 font-bold text-amber-900">
+          </div>
+          <button onclick="submitNewVillageEntry()" class="w-full bg-amber-600 text-white text-xs py-2 rounded font-bold hover:bg-amber-700 shadow">
+            ➕ Add Village to Allocation Table
+          </button>
+        </div>
+
+        <!-- Edit/Delete Management Box -->
+        <div class="border-t pt-3 space-y-2">
+          <h4 class="font-bold text-slate-800 uppercase text-[11px]">✏️ Manage Non-Surveyed Villages (PIN Required)</h4>
+          <div class="flex space-x-2">
+            <select id="nsExistingDropdown" class="border rounded p-2 w-full bg-slate-50 font-semibold text-xs">
+              <option value="">-- Select Village to Edit / Delete --</option>
+            </select>
+            <button onclick="editSelectedAdhocVillage()" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-xs font-bold shadow">Edit</button>
+            <button onclick="deleteSelectedAdhocVillage()" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded text-xs font-bold shadow">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2 border-t">
+        <button onclick="toggleNewVillageModal()" class="bg-gray-200 text-gray-700 text-xs px-4 py-1.5 rounded font-bold hover:bg-gray-300">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-7xl mx-auto p-4 space-y-6">
+
+    <!-- TAB 1: LOG SOURCING TRANSACTION -->
+    <section id="sec-log" class="space-y-6">
+
+      <!-- Master Upload Setup -->
+      <div class="bg-white p-4 rounded-lg shadow space-y-3">
+        <h2 class="text-sm font-semibold text-gray-700 uppercase border-b pb-2">Master Dataset Setup</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-600">Select Master CSV</label>
+            <input type="file" id="masterCsvInput" accept=".csv" onchange="loadMasterCsv(event)" class="mt-1 text-xs w-full border rounded p-1">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600">Yield Factor (kg / tree)</label>
+            <input type="number" id="yieldFactor" value="3" onchange="recalculateCapacities()" class="mt-1 border rounded p-1 text-sm w-full">
+          </div>
+          <div class="flex items-end">
+            <span id="masterStatus" class="text-xs text-emerald-700 font-medium">Ready for CSV input.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transaction Header Form -->
+      <div class="bg-white p-4 rounded-lg shadow space-y-4">
+        <div class="border-b pb-2">
+          <h2 class="text-sm font-semibold text-gray-700 uppercase">Transaction Header Details</h2>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-gray-600">Vendor Name</label>
+            <input type="text" id="txVendor" placeholder="e.g. Naveen" oninput="autoCapitalize(this)" class="border rounded p-2 text-sm w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600">Truck Arrival ID / GRN</label>
+            <input type="text" id="txTruck" placeholder="e.g. TAKA001" oninput="this.value = this.value.toUpperCase();" class="border rounded p-2 text-sm w-full uppercase font-mono font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600">Total Procured Qty (<span class="unitLbl">KG</span>)</label>
+            <input type="number" id="txTotalQty" placeholder="10000" oninput="updateAllocationCounter()" class="border rounded p-2 text-sm w-full bg-yellow-50 font-bold">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600">Date & Place</label>
+            <div class="flex space-x-1">
+              <input type="text" id="txPlace" placeholder="Madhugiri" oninput="autoCapitalize(this)" class="border rounded p-2 text-sm w-1/2">
+              <input type="date" id="txDate" class="border rounded p-2 text-sm w-1/2">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600">Logged By (Staff)</label>
+            <input type="text" id="txLoggedBy" placeholder="Chethan H C" oninput="autoCapitalize(this)" class="border rounded p-2 text-sm w-full">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600">Upload Vendor Signature</label>
+            <input type="file" id="vendorSigInput" accept="image/png, image/jpeg, image/jpg" onchange="handleSignatureUpload(event)" class="mt-1 text-[10px] w-full border rounded p-1 bg-gray-50">
+          </div>
+        </div>
+
+        <!-- Dynamic Counter Banner -->
+        <div id="counterBanner" class="bg-slate-900 text-white p-3 rounded-lg flex justify-between items-center transition-colors duration-300">
+          <div>
+            <span class="text-xs text-gray-400 block">TRANSACTION ALLOCATION COUNTER</span>
+            <span class="text-lg font-bold">Total Procured: <span id="cntTotal">0</span> <span class="unitLbl">KG</span></span>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-gray-400 block">UNALLOCATED BALANCE TO ASSIGN</span>
+            <span class="text-xl font-extrabold text-emerald-400" id="cntUnallocated">0 <span class="unitLbl">KG</span></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Currently Staged Allocations -->
+      <div id="stagedSection" class="bg-amber-50 border border-amber-300 p-4 rounded-lg shadow space-y-3 hidden">
+        <div class="flex justify-between items-center border-b border-amber-200 pb-2">
+          <h3 class="text-xs font-bold text-amber-900 uppercase flex items-center space-x-2">
+            <span>📌 Currently Staged Allocations for this Transaction</span>
+            <span id="stagedBadge" class="bg-amber-200 text-amber-800 text-[10px] px-2 py-0.5 rounded-full">0 Items</span>
+          </h3>
+          <button onclick="clearAllStaged()" class="text-xs text-red-700 font-bold hover:underline">Clear All Staged</button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-amber-100 text-amber-800 uppercase">
+              <tr>
+                <th class="p-2">Ref No</th>
+                <th class="p-2">Village Name</th>
+                <th class="p-2">Block</th>
+                <th class="p-2 text-right">Edit Allocated Qty (<span class="unitLbl">KG</span>)</th>
+                <th class="p-2 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="stagedTableBody" class="divide-y divide-amber-200">
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Proximity Search Controls -->
+      <div class="bg-white p-4 rounded-lg shadow space-y-3">
+        <h2 class="text-sm font-semibold text-gray-700 uppercase">Vendor Proximity Search (Up to 100 km)</h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+          <div>
+            <label class="block text-xs text-gray-600">Vendor Latitude</label>
+            <input type="number" step="any" id="vendorLat" value="13.5676849" class="border rounded p-2 text-sm w-full">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-600">Vendor Longitude</label>
+            <input type="number" step="any" id="vendorLng" value="77.2289126" class="border rounded p-2 text-sm w-full">
+          </div>
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs text-gray-600">
+              <label>Search Radius (km)</label>
+              <span id="radiusValText" class="font-bold">10 km</span>
+            </div>
+            <div class="flex space-x-2 items-center">
+              <input type="range" id="radiusSlider" min="1" max="100" value="10" oninput="syncRadiusInput(this.value)" class="w-full">
+              <input type="number" id="radiusBox" min="1" max="100" value="10" oninput="syncRadiusSlider(this.value)" class="border rounded p-1 text-xs w-16 text-center">
+            </div>
+          </div>
+          <div class="flex items-end">
+            <button onclick="searchNearbyVillages()" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-semibold p-2 rounded text-sm">Find Villages in Radius</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nearby Village Capacity Table -->
+      <div class="bg-white rounded-lg shadow overflow-hidden">
+        <div class="p-3 bg-gray-100 border-b flex flex-wrap justify-between items-center gap-2">
+          <div class="flex items-center space-x-3">
+            <h3 class="text-sm font-bold text-gray-800">Nearby Villages & Capacity Caps</h3>
+            <span id="tableUnallocatedBadge" class="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800">
+              Unallocated: <span id="tblUnallocVal">0</span> <span class="unitLbl">KG</span>
+            </span>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button onclick="toggleNewVillageModal()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
+              <span>➕ Add New Village</span>
+            </button>
+            <button onclick="addAllEnteredQuantities()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
+              <span>⚡ Add All Entered</span>
+            </button>
+            <button onclick="saveCurrentTransaction()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
+              <span>💾 Save & Sync Transaction</span>
+            </button>
+            <span id="resultCount" class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">0 Villages Found</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-50 text-gray-600 uppercase border-b">
+              <tr>
+                <th class="p-2">Village Name</th>
+                <th class="p-2">Ref No</th>
+                <th class="p-2">District / Block / GP</th>
+                <th class="p-2">Status</th>
+                <th class="p-2 text-center">Usage Count</th>
+                <th class="p-2">Distance</th>
+                <th class="p-2">Max Cap (<span class="unitLbl">KG</span>)</th>
+                <th class="p-2">Max Permitted (+10%)</th>
+                <th class="p-2">Sourced (<span class="unitLbl">KG</span>)</th>
+                <th class="p-2">Remaining (<span class="unitLbl">KG</span>)</th>
+                <th class="p-2">Allocate Qty (<span class="unitLbl">KG</span>)</th>
+              </tr>
+            </thead>
+            <tbody id="villageTableBody" class="divide-y divide-gray-200">
+              <tr><td colspan="11" class="p-4 text-center text-gray-400">Load Master CSV data to begin allocation.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Bottom Actions -->
+      <div class="flex justify-end items-center">
+        <button onclick="saveCurrentTransaction()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-3 rounded-lg font-bold shadow text-sm">
+          Save Transaction & Sync to Cloud
+        </button>
+      </div>
+    </section>
+
+    <!-- TAB 2: TRACEABILITY SEARCH & AUDIT -->
+    <section id="sec-search" class="hidden space-y-6">
+      
+      <!-- Main Audit Filter Bar -->
+      <div class="bg-white p-4 rounded-lg shadow space-y-4 no-print">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="text-sm font-semibold text-gray-700 uppercase">End-of-Season Traceability & Audit Center</h2>
+          <button onclick="fetchCloudLedger()" class="bg-emerald-800 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-bold">Fetch All Team Traceability Sheets from Cloud</button>
+        </div>
+        
+        <!-- Decoupled Independent Filter Controls -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-gray-600 font-medium mb-1">Filter by Single Truck Arrival ID / GRN</label>
+            <select id="filterTruck" onchange="onGrnFilterChange(this.value)" class="border rounded p-2 text-sm w-full bg-white"><option value="">-- Select Truck ID --</option></select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-600 font-medium mb-1">Filter by Single Vendor Name</label>
+            <select id="filterVendor" onchange="onVendorFilterChange(this.value)" class="border rounded p-2 text-sm w-full bg-white"><option value="">-- Select Vendor --</option></select>
+          </div>
+        </div>
+
+        <!-- Vendor GRN Navigation Sub-Tabs / Chips Bar -->
+        <div id="vendorGrnToggleBar" class="hidden bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 flex items-center justify-between flex-wrap gap-2">
+          <div class="flex items-center space-x-2 flex-wrap">
+            <span class="text-xs font-bold text-emerald-900 uppercase">Vendor Traceability Sheets:</span>
+            <div id="grnChipContainer" class="flex space-x-2 flex-wrap"></div>
+          </div>
+          <!-- RETROACTIVE VENDOR SIGNATURE UPLOAD BUTTON -->
+          <div class="flex items-center space-x-2">
+            <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded font-bold shadow flex items-center space-x-1">
+              <span>✏️ Upload / Update Vendor Signature</span>
+              <input type="file" accept="image/png, image/jpeg, image/jpg" onchange="handleRetroactiveSignatureUpload(event)" class="hidden">
+            </label>
+          </div>
+        </div>
+
+        <!-- Toolbar Buttons -->
+        <div class="flex space-x-3 pt-1 flex-wrap gap-y-2">
+          <button onclick="exportToPdf()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded font-semibold">Download Selected A4 PDF</button>
+          <button onclick="deleteSelectedGrn()" class="bg-red-700 hover:bg-red-800 text-white text-xs px-4 py-2 rounded font-semibold flex items-center space-x-1">
+            <span>🔒 Delete Selected Sheet (PIN Protected)</span>
+          </button>
+          <button onclick="exportNonSurveyedAuditCsv()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-4 py-2 rounded font-semibold">
+            📄 Export Non-Surveyed Villages Audit (CSV)
+          </button>
+          <button onclick="exportLoggedCsv()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-4 py-2 rounded font-semibold">Export All Logged Data (CSV)</button>
+        </div>
+      </div>
+
+      <!-- Printable Single A4 Certificate Container -->
+      <div id="pdfContainer" class="bg-white p-8 rounded shadow max-w-4xl mx-auto border border-gray-300">
+        <div class="text-center font-bold text-lg tracking-wide border-b border-gray-800 pb-2 mb-4 uppercase">Traceability Sheet</div>
+        
+        <div class="border border-gray-800 mb-4">
+          <div class="flex border-b border-gray-800">
+            <div class="w-1/3 p-2 font-bold border-r border-gray-800 text-xs">Vendor Name</div>
+            <div class="w-2/3 p-2 text-xs" id="pdfVendorName">-</div>
+          </div>
+          <div class="flex">
+            <div class="w-1/3 p-2 font-bold border-r border-gray-800 text-xs">Truck Arrival ID / GRN</div>
+            <div class="w-2/3 p-2 text-xs font-mono font-bold" id="pdfTruckId">-</div>
+          </div>
+        </div>
+
+        <table class="w-full border-collapse border border-gray-800 text-xs mb-4">
+          <thead>
+            <tr class="bg-gray-100 border-b border-gray-800">
+              <th class="border-r border-gray-800 p-2 text-left">Ref Number</th>
+              <th class="border-r border-gray-800 p-2 text-left">Village Name</th>
+              <th class="border-r border-gray-800 p-2 text-left">Block</th>
+              <th class="p-2 text-right">Qty (in <span class="unitLbl">KG</span>)</th>
+            </tr>
+          </thead>
+          <tbody id="pdfTableBody">
+            <tr><td colspan="4" class="p-4 text-center text-gray-400">Select a Truck ID or Vendor above to render certificate.</td></tr>
+          </tbody>
+          <tfoot>
+            <tr class="border-t border-gray-800 font-bold">
+              <td colspan="3" class="p-2 text-right border-r border-gray-800 uppercase">Total Qty (in <span class="unitLbl">KG</span>)</td>
+              <td class="p-2 text-right" id="pdfTotalQty">0</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <p class="text-[10px] italic text-gray-600 mb-6">I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.</p>
+
+        <!-- Clean Signature Block -->
+        <div class="flex justify-between items-end text-xs pt-3 border-t border-gray-300">
+          <div>
+            <p><strong>Place, Date:</strong> <span id="pdfPlaceDate">-</span></p>
+          </div>
+          <div class="text-center">
+            <div id="pdfSigImgPreview" class="h-10 flex items-center justify-center"></div>
+            <div class="w-48 border-t border-gray-800 pt-1 font-bold">Signature of Vendor</div>
+            <div class="text-[10px] text-gray-500 mt-0.5">Logged By: <span id="pdfLoggedBy">-</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CONSOLIDATED REPORT GENERATOR BOXES -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 no-print max-w-4xl mx-auto mt-8">
+        
+        <!-- Box 1: Date Range Consolidated Generator -->
+        <div class="border bg-purple-50 p-4 rounded-lg border-purple-200 shadow space-y-3">
+          <h3 class="text-xs font-bold text-purple-900 uppercase">📄 DATE RANGE CONSOLIDATED REPORT</h3>
+          <p class="text-[11px] text-purple-700">Generates a multi-page PDF combining all sheets in chronological order within date limits.</p>
+          <div class="space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[10px] text-purple-800 font-semibold">From Date</label>
+                <input type="date" id="pdfFromDate" class="border border-purple-300 rounded p-1.5 text-xs w-full bg-white">
+              </div>
+              <div>
+                <label class="block text-[10px] text-purple-800 font-semibold">To Date</label>
+                <input type="date" id="pdfToDate" class="border border-purple-300 rounded p-1.5 text-xs w-full bg-white">
+              </div>
+            </div>
+            <button onclick="downloadConsolidatedPdf()" class="w-full bg-purple-800 hover:bg-purple-900 text-white text-xs px-3 py-2 rounded font-bold shadow">
+              📄 Download Date Range PDF
+            </button>
+          </div>
+        </div>
+
+        <!-- Box 2: Vendor Consolidated Generator -->
+        <div class="border bg-blue-50 p-4 rounded-lg border-blue-200 shadow space-y-3">
+          <h3 class="text-xs font-bold text-blue-900 uppercase">📄 VENDOR BATCH CONSOLIDATED REPORT</h3>
+          <p class="text-[11px] text-blue-700">Generates a single multi-page PDF combining all sheets for a selected vendor.</p>
+          <div class="space-y-2">
+            <div>
+              <label class="block text-[10px] text-blue-800 font-semibold">Select Vendor</label>
+              <select id="filterConsolidatedVendor" class="border border-blue-300 rounded p-1.5 text-xs w-full bg-white">
+                <option value="">-- Select Vendor --</option>
+              </select>
+            </div>
+            <button onclick="downloadVendorConsolidatedPdf()" class="w-full bg-blue-800 hover:bg-blue-900 text-white text-xs px-3 py-2 rounded font-bold shadow">
+              📄 Download Vendor Master PDF
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 3: SUMMARY & REPORTS -->
+    <section id="sec-summary" class="hidden space-y-6">
+      <div class="bg-white p-4 rounded-lg shadow space-y-1 no-print">
+        <h2 class="text-sm font-semibold text-gray-700 uppercase border-b pb-2">Season Overview</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3" id="summaryTopStats">
+          <!-- filled by renderSummaryReport() -->
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+          <div class="p-3 bg-gray-100 border-b">
+            <h3 class="text-sm font-bold text-gray-800">Total Procured by Vendor</h3>
+          </div>
+          <div class="overflow-x-auto max-h-96 overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-50 text-gray-600 uppercase border-b sticky top-0">
+                <tr>
+                  <th class="p-2">Vendor</th>
+                  <th class="p-2 text-right">Total (<span class="unitLbl">KG</span>)</th>
+                  <th class="p-2 text-right">Trucks</th>
+                </tr>
+              </thead>
+              <tbody id="summaryVendorTableBody" class="divide-y divide-gray-200"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+          <div class="p-3 bg-gray-100 border-b flex items-center justify-between">
+            <h3 class="text-sm font-bold text-gray-800">Villages Near or Over Capacity</h3>
+            <span class="text-[10px] text-gray-500">≥ 90% of Max Cap</span>
+          </div>
+          <div class="overflow-x-auto max-h-96 overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-50 text-gray-600 uppercase border-b sticky top-0">
+                <tr>
+                  <th class="p-2">Village</th>
+                  <th class="p-2 text-right">Sourced</th>
+                  <th class="p-2 text-right">Cap</th>
+                  <th class="p-2 text-right">%</th>
+                </tr>
+              </thead>
+              <tbody id="summaryCapacityTableBody" class="divide-y divide-gray-200"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: CLOUD SYNC SETUP -->
+    <section id="sec-sync" class="hidden space-y-4">
+      <div class="bg-white p-6 rounded-lg shadow space-y-4">
+        <h2 class="text-sm font-semibold text-gray-700 uppercase">Multi-Device Real-Time Synchronization Setup</h2>
+        <p class="text-xs text-gray-600">Paste your deployed Google Apps Script Webhook URL below to sync offline allocations across all supervisors in real time.</p>
+        <div>
+          <label class="block text-xs font-medium text-gray-600">Google Apps Script Webhook URL</label>
+          <input type="url" id="webhookUrl" placeholder="https://script.google.com/macros/s/.../exec" class="border rounded p-2 text-sm w-full mt-1">
+        </div>
+        <div class="flex space-x-3">
+          <button onclick="saveWebhookUrl()" class="bg-emerald-700 text-white text-xs px-4 py-2 rounded font-bold">Save Webhook URL</button>
+          <button onclick="fetchCloudLedger()" class="bg-blue-600 text-white text-xs px-4 py-2 rounded font-bold">Pull All Cloud Data Now</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    let masterVillages = [];
+    let loggedTransactions = JSON.parse(localStorage.getItem('pongamia_logs') || '[]');
+    let adhocVillagesStore = JSON.parse(localStorage.getItem('pongamia_adhoc_villages') || '[]');
+    // Vendor-level signatures: { "Vendor Name": "data:image/jpeg;base64,..." }.
+    // Looked up by vendor name whenever a sheet is rendered, instead of being
+    // copied into every transaction/row — see handleRetroactiveSignatureUpload
+    // for why.
+    let vendorSignatures = JSON.parse(localStorage.getItem('pongamia_vendor_signatures') || '{}');
+    // Failed syncs (transaction saves, vendor signatures, audit log entries)
+    // land here instead of just vanishing after one failed attempt. See
+    // queueForRetry / flushSyncQueue near postToWebhook.
+    let pendingSyncQueue = JSON.parse(localStorage.getItem('pongamia_pending_sync') || '[]');
+    let currentFilteredVillages = [];
+    let activeTxItems = [];
+    let currentUnit = 'KG';
+    let uploadedVendorSigBase64 = "";
+
+    const MANAGER_DELETE_PIN = "1234";
+
+    let currentVendorGrns = [];
+    let activeVendorGrnIndex = 0;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedWebhook = localStorage.getItem('pongamia_webhook');
+      if (savedWebhook) {
+        document.getElementById('webhookUrl').value = savedWebhook;
+        document.getElementById('webhookAlertBanner').classList.add('hidden');
+        fetchCloudLedger();
+        flushSyncQueue();
+      } else {
+        document.getElementById('webhookAlertBanner').classList.remove('hidden');
+      }
+      document.getElementById('txDate').value = new Date().toISOString().substring(0, 10);
+      populateAdhocModalDropdowns();
+      updatePendingSyncBadge();
+    });
+
+    function autoCapitalize(input) {
+      if (!input || !input.value) return;
+      let val = input.value;
+      input.value = val.replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function toggleGuideModal() {
+      document.getElementById('guideModal').classList.toggle('hidden');
+    }
+
+    function toggleNewVillageModal() {
+      populateAdhocModalDropdowns();
+      document.getElementById('newVillageModal').classList.toggle('hidden');
+    }
+
+    function populateAdhocModalDropdowns() {
+      const dropdown = document.getElementById('nsExistingDropdown');
+      const distDatalist = document.getElementById('nsDistrictDatalist');
+      const blockDatalist = document.getElementById('nsBlockDatalist');
+
+      dropdown.innerHTML = '<option value="">-- Select Village to Edit / Delete --</option>';
+      distDatalist.innerHTML = '';
+      blockDatalist.innerHTML = '';
+
+      adhocVillagesStore.forEach((v) => {
+        dropdown.innerHTML += `<option value="${v.ref_number}">${v.village_name} (${v.district} / ${v.block})</option>`;
+      });
+
+      let allDistricts = [...new Set([...masterVillages.map(m => m.district), ...adhocVillagesStore.map(a => a.district)])].filter(Boolean).sort();
+      let allBlocks = [...new Set([...masterVillages.map(m => m.block), ...adhocVillagesStore.map(a => a.block)])].filter(Boolean).sort();
+
+      allDistricts.forEach(d => { distDatalist.innerHTML += `<option value="${d}">`; });
+      allBlocks.forEach(b => { blockDatalist.innerHTML += `<option value="${b}">`; });
+    }
+
+    function editSelectedAdhocVillage() {
+      const refVal = document.getElementById('nsExistingDropdown').value;
+      if (!refVal) {
+        alert("Please select a village from the dropdown to edit.");
+        return;
+      }
+
+      const enteredPin = prompt("🔒 JUNIOR MANAGER AUTHORIZATION REQUIRED:\n\nEnter Manager Security PIN to edit this village:");
+      if (enteredPin === null) return;
+      if (enteredPin !== MANAGER_DELETE_PIN) {
+        alert("❌ ACCESS DENIED: Invalid Junior Manager Security PIN.");
+        return;
+      }
+
+      let v = masterVillages.find(m => m.ref_number === refVal) || adhocVillagesStore.find(a => a.ref_number === refVal);
+      if (!v) return;
+
+      const newName = prompt("Edit Village Name:", v.village_name);
+      if (!newName) return;
+      const newDist = prompt("Edit District Name:", v.district);
+      if (!newDist) return;
+      const newBlock = prompt("Edit Block Name:", v.block);
+      if (!newBlock) return;
+
+      v.village_name = autoCapitalizeStr(newName);
+      v.district = autoCapitalizeStr(newDist);
+      v.block = autoCapitalizeStr(newBlock);
+
+      localStorage.setItem('pongamia_adhoc_villages', JSON.stringify(adhocVillagesStore));
+      renderVillageTable();
+      populateAdhocModalDropdowns();
+
+      alert("✅ Village updated successfully!");
+    }
+
+    async function deleteSelectedAdhocVillage() {
+      const refVal = document.getElementById('nsExistingDropdown').value;
+      if (!refVal) {
+        alert("Please select a village from the dropdown to delete.");
+        return;
+      }
+
+      const enteredPin = prompt("🔒 JUNIOR MANAGER AUTHORIZATION REQUIRED:\n\nEnter Manager Security PIN to delete this non-surveyed village entry:");
+      if (enteredPin === null) return;
+      if (enteredPin !== MANAGER_DELETE_PIN) {
+        alert("❌ ACCESS DENIED: Invalid Junior Manager Security PIN.");
+        return;
+      }
+
+      const deletedVillage = adhocVillagesStore.find(a => a.ref_number === refVal);
+
+      adhocVillagesStore = adhocVillagesStore.filter(a => a.ref_number !== refVal);
+      masterVillages = masterVillages.filter(m => m.ref_number !== refVal);
+      currentFilteredVillages = currentFilteredVillages.filter(f => f.ref_number !== refVal);
+      activeTxItems = activeTxItems.filter(i => i.ref_number !== refVal);
+
+      localStorage.setItem('pongamia_adhoc_villages', JSON.stringify(adhocVillagesStore));
+      renderVillageTable();
+      renderStagedTable();
+      populateAdhocModalDropdowns();
+
+      logAuditEvent('delete_village', deletedVillage ? `${deletedVillage.village_name} (${deletedVillage.district}/${deletedVillage.block}, ref ${refVal})` : refVal);
+
+      alert("✅ Non-surveyed village entry deleted successfully!");
+    }
+
+    function autoCapitalizeStr(str) {
+      if (!str) return '';
+      return str.replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // BASE64 COMPRESSION FOR RELIABLE SIGNATURE SYNC
+    function compressImageFileToBase64(file, onDone, onError) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxDim = 300;
+          let w = img.width;
+          let h = img.height;
+          if (w > h) {
+            if (w > maxDim) { h *= maxDim / w; w = maxDim; }
+          } else {
+            if (h > maxDim) { w *= maxDim / h; h = maxDim; }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          onDone(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.onerror = function() { onError && onError(); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function() { onError && onError(); };
+      reader.readAsDataURL(file);
+    }
+
+    // Shared by both upload points (Tab 1's per-transaction field and
+    // Tab 2's retroactive button). A signature is a property of the
+    // VENDOR, not of any one transaction — this is the only place that
+    // actually persists one, so every entry point funnels through here.
+    // It updates the local cache immediately (so it shows right away,
+    // with no refresh needed) and then syncs to the cloud, reporting back
+    // whether that sync actually succeeded.
+    async function saveVendorSignature(vendorName, base64) {
+      vendorSignatures[vendorName] = base64;
+      localStorage.setItem('pongamia_vendor_signatures', JSON.stringify(vendorSignatures));
+      renderTraceabilitySheet(); // reflect immediately if this vendor's sheet is open
+      const result = await syncVendorSignatureToCloud(vendorName, base64);
+      if (!result.ok) {
+        queueForRetry('vendor_signature', { type: 'vendor_signature', vendor_name: vendorName, vendor_sig_base64: base64 });
+      }
+      return result;
+    }
+
+    // Uploading here used to only attach the signature to THIS ONE
+    // transaction (uploadedVendorSigBase64 → txObj.vendor_sig_base64).
+    // That looked fine right after saving, but disappeared on refresh:
+    // Code.gs now intentionally leaves the per-row signature column blank
+    // (signatures live in the separate VendorSignatures sheet instead), so
+    // the next fetchCloudLedger() pulled fresh data with no signature and
+    // overwrote the local copy. Routing this through saveVendorSignature()
+    // instead means it's durable from the moment it's uploaded — same as
+    // uploading it retroactively in Tab 2 — and it also immediately
+    // applies to every other transaction this vendor already has.
+    function handleSignatureUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const vendorName = document.getElementById('txVendor').value.trim();
+      if (!vendorName) {
+        alert("Please enter the Vendor Name above first, then upload the signature.");
+        event.target.value = '';
+        return;
+      }
+
+      compressImageFileToBase64(file, async function(base64) {
+        uploadedVendorSigBase64 = base64; // kept so this transaction's own save also carries it, for old-data compatibility
+        const result = await saveVendorSignature(vendorName, base64);
+        if (result.ok) {
+          alert(`✅ Signature saved for '${vendorName}' and synced. It now applies to every traceability sheet for this vendor — including this transaction — on every device.`);
+        } else {
+          alert(`⚠️ Signature saved on THIS device for '${vendorName}', but the cloud sync failed (${result.reason}).\n\nIt's been queued and will retry automatically — other devices will pick it up once that succeeds.`);
+        }
+      }, function() {
+        alert("Could not read that image file. Please try a different PNG or JPEG.");
+      });
+    }
+
+    // RETROACTIVE SIGNATURE UPLOAD IN TAB 2
+    //
+    // The previous version of this function looped over every logged
+    // transaction for the vendor and called syncSingleTransactionToCloud()
+    // on each one. Two things made that unreliable:
+    //
+    //  1. Code.gs's doPost only ever APPENDS rows — it has no concept of
+    //     "this transaction already exists, update it instead". So every
+    //     time this ran, it re-appended a full duplicate copy of every
+    //     village row for every transaction that vendor ever had. (This is
+    //     exactly the duplicate TAKA333/Kathinagenahalli rows visible in
+    //     the sheet — same data, few seconds apart.)
+    //  2. The sync used `mode: 'no-cors'`, which makes the response
+    //     unreadable — a failed write looks identical to a successful one,
+    //     which is why it can say "synced!" while column L stays empty.
+    //
+    // The fix: a signature is a property of the VENDOR, not of each
+    // transaction, so it only needs to be sent ONCE — a single small
+    // upsert to a dedicated place — and every sheet for that vendor reads
+    // it live at render time (see buildSinglePageHtml / 
+    // renderTraceabilitySheetForGrn). No looping, no duplication, and the
+    // matching Code.gs (see the version shared alongside this fix) now
+    // upserts by vendor name instead of blindly appending.
+    function handleRetroactiveSignatureUpload(event) {
+      const selectedVendor = document.getElementById('filterVendor').value;
+      if (!selectedVendor) {
+        alert("Please select a Vendor Name first.");
+        event.target.value = '';
+        return;
+      }
+
+      const file = event.target.files[0];
+      if (!file) return;
+
+      compressImageFileToBase64(file, async function(sigBase64) {
+        const result = await saveVendorSignature(selectedVendor, sigBase64);
+        if (result.ok) {
+          alert(`✅ Signature saved for '${selectedVendor}' and confirmed synced to the cloud. It now applies to every traceability sheet for this vendor, on every device — no re-uploading needed per truck.`);
+        } else {
+          alert(`⚠️ Signature saved on THIS device for '${selectedVendor}', but the cloud sync failed (${result.reason}).\n\nIt's been queued and will retry automatically — other devices will pick it up once that succeeds.`);
+        }
+      }, function() {
+        alert("Could not read that image file. Please try a different PNG or JPEG.");
+      });
+    }
+
+    // ---- Fuzzy village-name matching --------------------------------
+    // Purely local text similarity, no external library. Used only to
+    // flag a likely typo before a near-duplicate village gets created —
+    // it never blocks anything, the person always has the final say.
+    function normalizeVillageKey(s) {
+      return (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function levenshteinDistance(a, b) {
+      a = a || ''; b = b || '';
+      const m = a.length, n = b.length;
+      if (m === 0) return n;
+      if (n === 0) return m;
+      const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+      for (let i = 0; i <= m; i++) dp[i][0] = i;
+      for (let j = 0; j <= n; j++) dp[0][j] = j;
+      for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+      }
+      return dp[m][n];
+    }
+
+    // Looks for an existing village in the same district whose name is
+    // close-but-not-identical to the one being entered. Deliberately
+    // scoped to "same district" so it doesn't flag two genuinely
+    // different villages that just happen to share a common name root.
+    function findSimilarVillage(vName, district) {
+      const normTarget = normalizeVillageKey(vName);
+      if (!normTarget) return null;
+      let best = null;
+      let bestDist = Infinity;
+      masterVillages.forEach(v => {
+        if ((v.district || '').toLowerCase() !== (district || '').toLowerCase()) return;
+        const normCandidate = normalizeVillageKey(v.village_name);
+        if (!normCandidate || normCandidate === normTarget) return; // identical handled elsewhere
+        const d = levenshteinDistance(normTarget, normCandidate);
+        const threshold = Math.max(2, Math.floor(Math.min(normTarget.length, normCandidate.length) * 0.25));
+        if (d <= threshold && d < bestDist) {
+          bestDist = d;
+          best = v;
+        }
+      });
+      return best;
+    }
+
+    function submitNewVillageEntry() {
+      const vName = document.getElementById('nsVillageName').value.trim();
+      const dist = document.getElementById('nsDistrict').value.trim();
+      const block = document.getElementById('nsBlock').value.trim();
+      const enteredQtyVal = parseFloat(document.getElementById('nsProcuredQty').value);
+
+      if (!vName || !dist || !block) {
+        alert("Please complete Village Name, District, and Block.");
+        return;
+      }
+
+      let existingObj = masterVillages.find(a => a.village_name.toLowerCase() === vName.toLowerCase() && a.block.toLowerCase() === block.toLowerCase());
+      
+      let targetObj;
+
+      if (existingObj) {
+        targetObj = existingObj;
+      } else {
+        // Before creating a brand-new village, check for a likely typo of
+        // one that already exists in the same district — this is how
+        // near-duplicate villages (e.g. "Kathinagenahalli" vs
+        // "Kathinagenahali") end up splitting one place's sourcing
+        // history across two separate entries.
+        const similar = findSimilarVillage(vName, dist);
+        const useSimilar = similar && confirm(`A similar village already exists in ${dist}: '${similar.village_name}' (${similar.block}).\n\nDid you mean that one, instead of creating '${vName}' as a new, separate village?\n\nOK = use '${similar.village_name}'\nCancel = create '${vName}' as a new entry anyway`);
+
+        if (useSimilar) {
+          targetObj = similar;
+        } else {
+          const refNo = 'adhoc_' + Math.random().toString(36).substring(2, 8);
+          targetObj = {
+            ref_number: refNo,
+            village_id: `${dist}_${block}_${vName}`,
+            village_name: vName,
+            district: dist,
+            block: block,
+            gp: 'Ad-Hoc GP',
+            status: 'Non-Surveyed (Ad-Hoc)',
+            lat: parseFloat(document.getElementById('vendorLat').value) || 0,
+            lng: parseFloat(document.getElementById('vendorLng').value) || 0,
+            est_trees: 0,
+            max_cap_kg: 99999999,
+            sourced_kg: getSourcedFromLogs(refNo),
+            remaining_kg: 99999999,
+            dist: 0
+          };
+
+          adhocVillagesStore.push(targetObj);
+          localStorage.setItem('pongamia_adhoc_villages', JSON.stringify(adhocVillagesStore));
+          masterVillages.unshift(targetObj);
+        }
+      }
+
+      let inFiltered = currentFilteredVillages.find(f => f.ref_number === targetObj.ref_number);
+      if (!inFiltered) currentFilteredVillages.unshift(targetObj);
+
+      if (!isNaN(enteredQtyVal) && enteredQtyVal > 0) {
+        const valKg = currentUnit === 'MT' ? enteredQtyVal * 1000 : enteredQtyVal;
+        
+        let existingStaged = activeTxItems.find(item => item.ref_number === targetObj.ref_number);
+        if (existingStaged) {
+          existingStaged.allocated_kg += valKg;
+        } else {
+          activeTxItems.push({
+            ref_number: targetObj.ref_number,
+            village_id: targetObj.village_id,
+            village_name: targetObj.village_name,
+            block: targetObj.block,
+            district: targetObj.district,
+            status: targetObj.status,
+            allocated_kg: valKg
+          });
+        }
+        targetObj.sourced_kg += valKg;
+        renderStagedTable();
+        updateAllocationCounter();
+      }
+
+      renderVillageTable();
+      toggleNewVillageModal();
+
+      document.getElementById('nsVillageName').value = '';
+      document.getElementById('nsDistrict').value = '';
+      document.getElementById('nsBlock').value = '';
+      document.getElementById('nsProcuredQty').value = '';
+      document.getElementById('nsExistingDropdown').value = '';
+
+      alert(`Village '${vName}' added to allocation table as Non-Surveyed!`);
+    }
+
+    function changeUnit(unit) {
+      currentUnit = unit;
+      document.querySelectorAll('.unitLbl').forEach(el => el.innerText = unit);
+      renderVillageTable();
+      renderStagedTable();
+      updateAllocationCounter();
+      if (!document.getElementById('sec-search').classList.contains('hidden')) {
+        renderTraceabilitySheet();
+      }
+    }
+
+    function unitMultiplier() {
+      return currentUnit === 'MT' ? 0.001 : 1.0;
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+      document.querySelectorAll('.max-w-7xl button').forEach(b => b.classList.remove('tab-active'));
+      document.getElementById('sec-' + tab).classList.remove('hidden');
+      document.getElementById('tab-' + tab).classList.add('tab-active');
+      if (tab === 'search') populateSearchDropdowns();
+      if (tab === 'summary') renderSummaryReport();
+    }
+
+    // Pure client-side aggregation of whatever's already loaded — no extra
+    // network calls. Re-run every time the tab is opened so it reflects
+    // the latest sync.
+    function renderSummaryReport() {
+      const mult = unitMultiplier();
+
+      // Top stats
+      const totalKg = loggedTransactions.reduce((sum, t) => sum + (t.total_kg || 0), 0);
+      const vendorSet = new Set(loggedTransactions.map(t => t.vendor_name).filter(Boolean));
+      const truckSet = new Set(loggedTransactions.map(t => t.truck_id).filter(Boolean));
+      const villageSet = new Set();
+      loggedTransactions.forEach(t => (t.items || []).forEach(i => villageSet.add(i.ref_number)));
+
+      const statCard = (label, value) => `
+        <div class="bg-slate-50 rounded-lg p-3 border border-slate-200">
+          <div class="text-[10px] text-gray-500 uppercase font-bold">${label}</div>
+          <div class="text-xl font-extrabold text-slate-800">${value}</div>
+        </div>
+      `;
+      document.getElementById('summaryTopStats').innerHTML =
+        statCard(`Total Procured (${currentUnit})`, (totalKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2})) +
+        statCard('Vendors', vendorSet.size) +
+        statCard('Trucks Logged', truckSet.size) +
+        statCard('Villages Sourced', villageSet.size);
+
+      // Total procured by vendor
+      const byVendor = {};
+      loggedTransactions.forEach(t => {
+        if (!t.vendor_name) return;
+        if (!byVendor[t.vendor_name]) byVendor[t.vendor_name] = { kg: 0, trucks: new Set() };
+        byVendor[t.vendor_name].kg += (t.total_kg || 0);
+        byVendor[t.vendor_name].trucks.add(t.truck_id);
+      });
+      const vendorRows = Object.entries(byVendor).sort((a, b) => b[1].kg - a[1].kg);
+      const vendorTbody = document.getElementById('summaryVendorTableBody');
+      vendorTbody.innerHTML = vendorRows.length === 0
+        ? `<tr><td colspan="3" class="p-4 text-center text-gray-400">No transactions logged yet.</td></tr>`
+        : vendorRows.map(([name, v]) => `
+            <tr class="hover:bg-gray-50">
+              <td class="p-2 font-bold text-gray-800">${name}</td>
+              <td class="p-2 text-right font-semibold">${(v.kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+              <td class="p-2 text-right text-gray-500">${v.trucks.size}</td>
+            </tr>
+          `).join('');
+
+      // Villages near/over capacity
+      const capRows = masterVillages
+        .filter(v => v.status && !v.status.includes('Non-Surveyed') && v.max_cap_kg > 0)
+        .map(v => ({ ...v, pct: (v.sourced_kg / v.max_cap_kg) * 100 }))
+        .filter(v => v.pct >= 90)
+        .sort((a, b) => b.pct - a.pct);
+      const capTbody = document.getElementById('summaryCapacityTableBody');
+      capTbody.innerHTML = capRows.length === 0
+        ? `<tr><td colspan="4" class="p-4 text-center text-gray-400">No villages currently at or near capacity.</td></tr>`
+        : capRows.map(v => `
+            <tr class="hover:bg-gray-50 ${v.pct >= 100 ? 'bg-red-50' : 'bg-amber-50'}">
+              <td class="p-2 font-bold text-gray-800">${v.village_name}</td>
+              <td class="p-2 text-right">${(v.sourced_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+              <td class="p-2 text-right">${(v.max_cap_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+              <td class="p-2 text-right font-extrabold ${v.pct >= 100 ? 'text-red-700' : 'text-amber-700'}">${v.pct.toFixed(0)}%</td>
+            </tr>
+          `).join('');
+    }
+
+    function syncRadiusInput(val) {
+      document.getElementById('radiusBox').value = val;
+      document.getElementById('radiusValText').innerText = val + ' km';
+    }
+
+    function syncRadiusSlider(val) {
+      let num = Math.min(Math.max(val, 1), 100);
+      document.getElementById('radiusSlider').value = num;
+      document.getElementById('radiusValText').innerText = num + ' km';
+    }
+
+    function loadMasterCsv(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) { parseCsvData(e.target.result); };
+      reader.readAsText(file);
+    }
+
+    function parseCsvData(text) {
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      masterVillages = [];
+      const yieldFactor = parseFloat(document.getElementById('yieldFactor').value) || 3;
+
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        if (cols.length < 5) continue;
+
+        let v = {};
+        headers.forEach((h, idx) => { v[h] = cols[idx]; });
+
+        let estTrees = parseFloat(v['Estimated Trees']) || 0;
+        let maxCapKg = estTrees * yieldFactor;
+        let refNo = v['Reference Number'] || ('fm' + Math.random().toString(36).substring(2,8));
+        let sourcedKg = getSourcedFromLogs(refNo);
+
+        masterVillages.push({
+          ref_number: refNo,
+          village_id: v['Village_ID'] || (v['District'] + '_' + v['Village Name']),
+          village_name: v['Village Name'],
+          district: v['District'],
+          block: v['Block / Taluk'],
+          gp: v['Gram Panchayat'],
+          status: v['Audit Status'] || 'Approved',
+          lat: parseFloat(v['Latitude']),
+          lng: parseFloat(v['Longitude']),
+          est_trees: estTrees,
+          max_cap_kg: maxCapKg,
+          sourced_kg: sourcedKg,
+          remaining_kg: maxCapKg - sourcedKg
+        });
+      }
+
+      adhocVillagesStore.forEach(adhoc => {
+        if (!masterVillages.find(m => m.ref_number === adhoc.ref_number)) {
+          masterVillages.push({ ...adhoc, sourced_kg: getSourcedFromLogs(adhoc.ref_number) });
+        }
+      });
+
+      document.getElementById('masterStatus').innerText = `Loaded ${masterVillages.length} master villages!`;
+    }
+
+    function getSourcedFromLogs(ref) {
+      let total = 0;
+      loggedTransactions.forEach(t => {
+        if (t.items && Array.isArray(t.items)) {
+          t.items.forEach(i => {
+            if (i.ref_number === ref) total += parseFloat(i.allocated_kg || 0);
+          });
+        }
+      });
+      return total;
+    }
+
+    function getVillageUsageCount(ref) {
+      let count = 0;
+      loggedTransactions.forEach(t => {
+        if (t.items && Array.isArray(t.items)) {
+          if (t.items.some(i => i.ref_number === ref)) count++;
+        }
+      });
+      return count;
+    }
+
+    // Was wired to the Yield Factor field's onchange but never implemented
+    // in any version of this file — changing the yield factor had no
+    // effect on already-loaded villages. Unrelated to the signature fix,
+    // just a one-line gap worth closing while in here.
+    function recalculateCapacities() {
+      const yieldFactor = parseFloat(document.getElementById('yieldFactor').value) || 3;
+      masterVillages.forEach(v => {
+        if (!v.status || !v.status.includes('Non-Surveyed')) {
+          v.max_cap_kg = (v.est_trees || 0) * yieldFactor;
+          v.remaining_kg = v.max_cap_kg - v.sourced_kg;
+        }
+      });
+      currentFilteredVillages.forEach(fv => {
+        const m = masterVillages.find(mv => mv.ref_number === fv.ref_number);
+        if (m) {
+          fv.max_cap_kg = m.max_cap_kg;
+          fv.remaining_kg = m.remaining_kg;
+        }
+      });
+      renderVillageTable();
+    }
+
+    function recalculateMasterSourcedFromLogs() {
+      if (!masterVillages || masterVillages.length === 0) return;
+      masterVillages.forEach(v => {
+        let sourcedKg = getSourcedFromLogs(v.ref_number);
+        v.sourced_kg = sourcedKg;
+        if (!v.status.includes('Non-Surveyed')) {
+          v.remaining_kg = v.max_cap_kg - sourcedKg;
+        }
+      });
+      if (currentFilteredVillages.length > 0) {
+        currentFilteredVillages.forEach(fv => {
+          let m = masterVillages.find(mv => mv.ref_number === fv.ref_number);
+          if (m) {
+            fv.sourced_kg = m.sourced_kg;
+            fv.remaining_kg = m.remaining_kg;
+          }
+        });
+        renderVillageTable();
+      }
+    }
+
+    function haversine(lat1, lon1, lat2, lon2) {
+      if (isNaN(lat1) || isNaN(lon1) || isNaN(lat2) || isNaN(lon2)) return 99999;
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function searchNearbyVillages() {
+      const vLat = parseFloat(document.getElementById('vendorLat').value);
+      const vLng = parseFloat(document.getElementById('vendorLng').value);
+      const radius = parseFloat(document.getElementById('radiusBox').value);
+
+      if (isNaN(vLat) || isNaN(vLng)) {
+        alert("Please enter valid vendor Latitude and Longitude.");
+        return;
+      }
+
+      captureTableInputs();
+
+      currentFilteredVillages = masterVillages.map(v => {
+        let dist = haversine(vLat, vLng, v.lat, v.lng);
+        return { ...v, dist: dist };
+      }).filter(v => v.dist <= radius || v.status.includes('Non-Surveyed')).sort((a,b) => a.dist - b.dist);
+
+      renderVillageTable();
+    }
+
+    const tableInputState = {};
+
+    function captureTableInputs() {
+      currentFilteredVillages.forEach((v, idx) => {
+        const inputEl = document.getElementById(`alloc_${idx}`);
+        if (inputEl && inputEl.value !== "") {
+          tableInputState[v.ref_number] = inputEl.value;
+        }
+      });
+    }
+
+    function renderVillageTable() {
+      const tbody = document.getElementById('villageTableBody');
+      tbody.innerHTML = '';
+      document.getElementById('resultCount').innerText = `${currentFilteredVillages.length} Villages within radius`;
+
+      if (currentFilteredVillages.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-gray-400">Load Master CSV data to begin allocation.</td></tr>`;
+        return;
+      }
+
+      const mult = unitMultiplier();
+
+      currentFilteredVillages.forEach((v, idx) => {
+        let isAdhoc = v.status && v.status.includes('Non-Surveyed');
+        let maxCapDisp = isAdhoc ? 'Unlimited' : (v.max_cap_kg * mult).toFixed(2);
+        let maxPermittedDisp = isAdhoc ? 'Unlimited' : ((v.max_cap_kg * 1.10) * mult).toFixed(2);
+        let sourcedDisp = (v.sourced_kg * mult).toFixed(2);
+        let remVal = isAdhoc ? 'Unlimited' : Math.max(0, (v.remaining_kg * mult));
+        let remDisp = isAdhoc ? 'Unlimited' : remVal.toFixed(2);
+
+        let usageCount = getVillageUsageCount(v.ref_number);
+        let usageBadgeClass = usageCount > 3 ? "bg-red-100 text-red-800 font-bold" : (usageCount > 0 ? "bg-amber-100 text-amber-900 font-bold" : "bg-gray-100 text-gray-600");
+
+        let savedVal = tableInputState[v.ref_number] || '';
+
+        let tr = document.createElement('tr');
+        tr.className = isAdhoc ? "bg-amber-50/50 hover:bg-amber-100/50" : "hover:bg-gray-50";
+        tr.innerHTML = `
+          <td class="p-2 font-bold text-gray-800">${v.village_name}</td>
+          <td class="p-2 font-mono text-gray-500">${v.ref_number}</td>
+          <td class="p-2 text-gray-600">${v.district} / ${v.block} / ${v.gp}</td>
+          <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] ${isAdhoc ? 'bg-amber-200 text-amber-900 font-bold' : (v.status.includes('Audit') ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800')}">${v.status}</span></td>
+          <td class="p-2 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] ${usageBadgeClass}">⚡ ${usageCount} GRN(s)</span></td>
+          <td class="p-2 font-semibold">${isAdhoc ? 'Ad-Hoc' : v.dist.toFixed(2) + ' km'}</td>
+          <td class="p-2 font-bold">${maxCapDisp} ${isAdhoc ? '' : currentUnit}</td>
+          <td class="p-2 text-purple-700 font-bold">${maxPermittedDisp} ${isAdhoc ? '' : currentUnit}</td>
+          <td class="p-2 text-amber-700">${sourcedDisp} ${currentUnit}</td>
+          <td class="p-2"><span class="text-emerald-700 font-extrabold">${remDisp} ${isAdhoc ? '' : currentUnit}</span></td>
+          <td class="p-2">
+            <div class="flex space-x-1">
+              <input type="number" step="any" id="alloc_${idx}" value="${savedVal}" oninput="tableInputState['${v.ref_number}'] = this.value" placeholder="${currentUnit}" class="border rounded p-1 w-20 text-xs">
+              <button onclick="allocateVillage(${idx})" class="bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold hover:bg-emerald-800">Add</button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function allocateVillage(idx) {
+      captureTableInputs();
+      const v = currentFilteredVillages[idx];
+      const valInput = document.getElementById(`alloc_${idx}`);
+      const valEntered = parseFloat(valInput.value);
+
+      if (isNaN(valEntered) || valEntered <= 0) {
+        alert("Enter a valid weight to allocate.");
+        return;
+      }
+
+      const valKg = currentUnit === 'MT' ? valEntered * 1000 : valEntered;
+      const isAdhoc = v.status && v.status.includes('Non-Surveyed');
+
+      if (!isAdhoc && (v.sourced_kg + valKg) > (v.max_cap_kg * 1.10)) {
+        const confirmExceed = confirm(`Allocation exceeds max permitted (+10% limit).\n\nAllow soft deviation entry?`);
+        if (!confirmExceed) return;
+      }
+
+      let existing = activeTxItems.find(item => item.ref_number === v.ref_number);
+      if (existing) {
+        existing.allocated_kg += valKg;
+      } else {
+        activeTxItems.push({
+          ref_number: v.ref_number,
+          village_id: v.village_id,
+          village_name: v.village_name,
+          block: v.block,
+          district: v.district,
+          status: v.status,
+          allocated_kg: valKg
+        });
+      }
+
+      v.sourced_kg += valKg;
+      if (!isAdhoc) v.remaining_kg = v.max_cap_kg - v.sourced_kg;
+
+      valInput.value = '';
+      delete tableInputState[v.ref_number];
+      
+      renderStagedTable();
+      renderVillageTable();
+      updateAllocationCounter();
+    }
+
+    function addAllEnteredQuantities() {
+      captureTableInputs();
+      let addedCount = 0;
+      currentFilteredVillages.forEach((v, idx) => {
+        const valInput = document.getElementById(`alloc_${idx}`);
+        if (valInput && valInput.value) {
+          const valEntered = parseFloat(valInput.value);
+          if (!isNaN(valEntered) && valEntered > 0) {
+            const valKg = currentUnit === 'MT' ? valEntered * 1000 : valEntered;
+            
+            let existing = activeTxItems.find(item => item.ref_number === v.ref_number);
+            if (existing) {
+              existing.allocated_kg += valKg;
+            } else {
+              activeTxItems.push({
+                ref_number: v.ref_number,
+                village_id: v.village_id,
+                village_name: v.village_name,
+                block: v.block,
+                district: v.district,
+                status: v.status,
+                allocated_kg: valKg
+              });
+            }
+
+            v.sourced_kg += valKg;
+            if (!v.status.includes('Non-Surveyed')) v.remaining_kg = v.max_cap_kg - v.sourced_kg;
+            valInput.value = '';
+            delete tableInputState[v.ref_number];
+            addedCount++;
+          }
+        }
+      });
+
+      if (addedCount > 0) {
+        renderStagedTable();
+        renderVillageTable();
+        updateAllocationCounter();
+        alert(`Successfully added allocations for ${addedCount} villages!`);
+      } else {
+        alert("No quantities were entered in the table fields.");
+      }
+    }
+
+    function renderStagedTable() {
+      const sec = document.getElementById('stagedSection');
+      const tbody = document.getElementById('stagedTableBody');
+      const badge = document.getElementById('stagedBadge');
+
+      if (activeTxItems.length === 0) {
+        sec.classList.add('hidden');
+        tbody.innerHTML = '';
+        return;
+      }
+
+      sec.classList.remove('hidden');
+      badge.innerText = `${activeTxItems.length} Village(s)`;
+      tbody.innerHTML = '';
+      const mult = unitMultiplier();
+
+      activeTxItems.forEach((item, idx) => {
+        let dispQty = (item.allocated_kg * mult).toFixed(2);
+        let tr = document.createElement('tr');
+        tr.className = "hover:bg-amber-100/50";
+        tr.innerHTML = `
+          <td class="p-2 font-mono">${item.ref_number}</td>
+          <td class="p-2 font-bold text-gray-800">${item.village_name}</td>
+          <td class="p-2 text-gray-600">${item.block}</td>
+          <td class="p-2 text-right">
+            <div class="flex items-center justify-end space-x-1">
+              <input type="number" step="any" value="${dispQty}" onchange="updateStagedItemQty(${idx}, this.value)" oninput="updateStagedItemQty(${idx}, this.value)" class="border border-amber-400 rounded p-1 w-24 text-right font-bold text-amber-900 bg-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">
+              <span class="font-bold text-amber-900 text-xs">${currentUnit}</span>
+            </div>
+          </td>
+          <td class="p-2 text-center">
+            <button onclick="removeStagedItem(${idx})" class="bg-red-600 hover:bg-red-700 text-white text-[10px] px-2 py-1 rounded font-bold shadow">🗑️ Remove</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateStagedItemQty(idx, newDispVal) {
+      const item = activeTxItems[idx];
+      if (!item) return;
+
+      const valEntered = parseFloat(newDispVal);
+      if (isNaN(valEntered) || valEntered < 0) return;
+
+      const newValKg = currentUnit === 'MT' ? valEntered * 1000 : valEntered;
+      const diffKg = newValKg - item.allocated_kg;
+
+      const vMaster = masterVillages.find(m => m.ref_number === item.ref_number);
+      if (vMaster) {
+        vMaster.sourced_kg += diffKg;
+        if (!vMaster.status.includes('Non-Surveyed')) vMaster.remaining_kg = vMaster.max_cap_kg - vMaster.sourced_kg;
+      }
+
+      const vFiltered = currentFilteredVillages.find(f => f.ref_number === item.ref_number);
+      if (vFiltered) {
+        vFiltered.sourced_kg += diffKg;
+        if (!vFiltered.status.includes('Non-Surveyed')) vFiltered.remaining_kg = vFiltered.max_cap_kg - vFiltered.sourced_kg;
+      }
+
+      item.allocated_kg = newValKg;
+
+      renderVillageTable();
+      updateAllocationCounter();
+    }
+
+    function removeStagedItem(idx) {
+      const item = activeTxItems[idx];
+      
+      const vMaster = masterVillages.find(m => m.ref_number === item.ref_number);
+      if (vMaster) {
+        vMaster.sourced_kg -= item.allocated_kg;
+        if (!vMaster.status.includes('Non-Surveyed')) vMaster.remaining_kg = vMaster.max_cap_kg - vMaster.sourced_kg;
+      }
+
+      const vFiltered = currentFilteredVillages.find(f => f.ref_number === item.ref_number);
+      if (vFiltered) {
+        vFiltered.sourced_kg -= item.allocated_kg;
+        if (!vFiltered.status.includes('Non-Surveyed')) vFiltered.remaining_kg = vFiltered.max_cap_kg - vFiltered.sourced_kg;
+      }
+
+      activeTxItems.splice(idx, 1);
+
+      renderStagedTable();
+      renderVillageTable();
+      updateAllocationCounter();
+    }
+
+    function clearAllStaged() {
+      if (confirm("Remove all staged allocations for this transaction?")) {
+        while (activeTxItems.length > 0) {
+          removeStagedItem(0);
+        }
+      }
+    }
+
+    function updateAllocationCounter() {
+      const totalEntered = parseFloat(document.getElementById('txTotalQty').value) || 0;
+      const totalProcuredKg = currentUnit === 'MT' ? totalEntered * 1000 : totalEntered;
+      let allocatedSumKg = activeTxItems.reduce((acc, item) => acc + item.allocated_kg, 0);
+      let unallocatedKg = totalProcuredKg - allocatedSumKg;
+
+      const mult = unitMultiplier();
+      const dispTotal = (totalProcuredKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+      const dispUnalloc = (unallocatedKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+
+      document.getElementById('cntTotal').innerText = dispTotal;
+      document.getElementById('cntUnallocated').innerText = `${dispUnalloc} ${currentUnit}`;
+      document.getElementById('tblUnallocVal').innerText = dispUnalloc;
+
+      const banner = document.getElementById('counterBanner');
+      const badge = document.getElementById('tableUnallocatedBadge');
+      const unallocText = document.getElementById('cntUnallocated');
+
+      if (unallocatedKg < 0) {
+        banner.className = "bg-red-900 text-white p-3 rounded-lg flex justify-between items-center transition-colors duration-300 animate-pulse";
+        badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-red-600 text-white animate-pulse";
+        unallocText.className = "text-xl font-extrabold text-red-200";
+      } else {
+        banner.className = "bg-slate-900 text-white p-3 rounded-lg flex justify-between items-center transition-colors duration-300";
+        badge.className = "text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800";
+        unallocText.className = "text-xl font-extrabold text-emerald-400";
+      }
+    }
+
+    let isSyncingTransaction = false;
+
+    function resetTransactionForm() {
+      document.getElementById('txVendor').value = '';
+      document.getElementById('txTruck').value = '';
+      document.getElementById('txTotalQty').value = '';
+      document.getElementById('txPlace').value = '';
+      document.getElementById('txLoggedBy').value = 'Chethan H C';
+      document.getElementById('vendorSigInput').value = '';
+      uploadedVendorSigBase64 = "";
+      document.getElementById('txDate').value = new Date().toISOString().substring(0, 10);
+      
+      activeTxItems = [];
+      for (let k in tableInputState) delete tableInputState[k];
+      
+      renderStagedTable();
+      renderVillageTable();
+      updateAllocationCounter();
+    }
+
+    async function saveCurrentTransaction() {
+      if (isSyncingTransaction) return;
+
+      const vendor = document.getElementById('txVendor').value.trim();
+      const truck = document.getElementById('txTruck').value.toUpperCase().trim();
+      const totalEntered = parseFloat(document.getElementById('txTotalQty').value);
+
+      if (!vendor || !truck || isNaN(totalEntered) || activeTxItems.length === 0) {
+        alert("Please complete Vendor Name, Truck ID, Total Quantity, and add at least one village allocation.");
+        return;
+      }
+
+      // Saving under a Truck ID that already has a logged transaction
+      // REPLACES it entirely (both locally and, as of the updated
+      // Code.gs, in the cloud sheet too) — it doesn't add to it. Flagging
+      // this clearly so a re-save is a deliberate choice, not a surprise.
+      const existingForTruck = loggedTransactions.find(t => t.truck_id === truck);
+      if (existingForTruck) {
+        const existingCount = (existingForTruck.items || []).length;
+        const proceed = confirm(`Truck ID '${truck}' already has a saved transaction (${existingCount} village${existingCount === 1 ? '' : 's'}, ${existingForTruck.total_kg} KG).\n\nSaving now will REPLACE that record with what's currently staged here — the old figures will not be kept.\n\nContinue?`);
+        if (!proceed) return;
+      }
+
+      isSyncingTransaction = true;
+
+      const totalProcuredKg = currentUnit === 'MT' ? totalEntered * 1000 : totalEntered;
+
+      const txObj = {
+        id: 'TX_' + Date.now(),
+        date: document.getElementById('txDate').value,
+        place: document.getElementById('txPlace').value.trim(),
+        vendor_name: vendor,
+        truck_id: truck,
+        logged_by: document.getElementById('txLoggedBy').value.trim() || 'Chethan H C',
+        vendor_sig_base64: uploadedVendorSigBase64 || "",
+        total_kg: totalProcuredKg,
+        items: [...activeTxItems]
+      };
+
+      let existingIdx = loggedTransactions.findIndex(t => t.truck_id === truck);
+      if (existingIdx >= 0) {
+        loggedTransactions[existingIdx] = txObj;
+      } else {
+        loggedTransactions.push(txObj);
+      }
+
+      localStorage.setItem('pongamia_logs', JSON.stringify(loggedTransactions));
+
+      const syncResult = await syncSingleTransactionToCloud(txObj);
+
+      if (syncResult.ok) {
+        alert(`✅ Transaction '${truck}' saved & synced successfully! Form is now reset for the next entry.`);
+      } else {
+        queueForRetry('transaction', txObj);
+        alert(`⚠️ Transaction '${truck}' was saved on THIS device, but the cloud sync failed (${syncResult.reason}).\n\nIt's been queued and will retry automatically in the background (or as soon as you're back online) — no need to re-enter it. You can also trigger it manually with "🔄 Sync Team Traceability Sheets".`);
+      }
+      
+      resetTransactionForm();
+      isSyncingTransaction = false;
+    }
+
+    // STRICT GOOGLE SHEETS CLOUD MIRROR WITH SIGNATURE SYNC
+    async function fetchCloudLedger() {
+      const url = localStorage.getItem('pongamia_webhook');
+      if (!url) {
+        document.getElementById('webhookAlertBanner').classList.remove('hidden');
+        return;
+      }
+
+      document.getElementById('webhookAlertBanner').classList.add('hidden');
+
+      try {
+        const res = await fetch(url);
+        const payload = await res.json();
+
+        // The fixed Apps Script (see the version shared alongside this
+        // fix) returns { ledger, vendor_signatures, backend_version }. If
+        // the old script is still deployed (redeploy hasn't happened
+        // yet), it returns a flat array — handled here so this doesn't
+        // break mid-rollout.
+        const rows = Array.isArray(payload) ? payload : payload.ledger;
+        const cloudVendorSigs = Array.isArray(payload) ? {} : (payload.vendor_signatures || {});
+        updateVersionMarker(Array.isArray(payload) ? null : payload.backend_version);
+        if (!Array.isArray(rows)) return;
+
+        const txMap = {};
+
+        rows.forEach(r => {
+          const truckId = String(r.Truck_ID || r.truck_id || 'UNKNOWN').toUpperCase();
+          if (!txMap[truckId]) {
+            txMap[truckId] = {
+              id: truckId,
+              date: String(r.Date || r.date || '').substring(0, 10),
+              place: r.Place || r.place || '',
+              vendor_name: r.Vendor_Name || r.vendor_name || '',
+              truck_id: truckId,
+              logged_by: r.Logged_By || r.logged_by || '',
+              vendor_sig_base64: r.Vendor_Sig_Base64 || r.vendor_sig_base64 || r.Vendor_Sig || '',
+              total_kg: 0,
+              items: []
+            };
+          }
+          
+          const qty = parseFloat(r.Allocated_Qty_kg || r.allocated_kg || 0);
+          const refNo = r.Ref_Number || r.ref_number || '';
+          
+          txMap[truckId].items.push({
+            ref_number: refNo,
+            village_id: r.Village_ID || r.village_id || '',
+            village_name: r.Village_Name || r.village_name || '',
+            block: r.Block || r.block || '',
+            district: r.District || r.district || '',
+            status: r.Audit_Status || r.status || (refNo.startsWith('adhoc_') ? 'Non-Surveyed (Ad-Hoc)' : 'Approved'),
+            allocated_kg: qty
+          });
+          
+          txMap[truckId].total_kg = txMap[truckId].items.reduce((a,b) => a + b.allocated_kg, 0);
+        });
+
+        loggedTransactions = Object.values(txMap);
+        localStorage.setItem('pongamia_logs', JSON.stringify(loggedTransactions));
+
+        // Merge vendor signatures: cloud is the source of truth per
+        // vendor (including an explicit removal, represented as an empty
+        // string), but don't clobber a signature this device just saved
+        // and hasn't confirmed synced yet.
+        vendorSignatures = { ...vendorSignatures, ...cloudVendorSigs };
+        Object.keys(vendorSignatures).forEach(k => { if (!vendorSignatures[k]) delete vendorSignatures[k]; });
+        localStorage.setItem('pongamia_vendor_signatures', JSON.stringify(vendorSignatures));
+        
+        recalculateMasterSourcedFromLogs();
+        populateSearchDropdowns();
+        populateAdhocModalDropdowns();
+        renderTraceabilitySheet();
+      } catch (e) {
+        console.error("Cloud fetch error:", e);
+        updateVersionMarker(undefined); // undefined = couldn't reach the backend at all
+      }
+    }
+
+    // Shows the deployed backend's self-reported version next to the
+    // frontend's own. This exists specifically because confirming a
+    // redeploy actually took effect used to require manually fetching the
+    // raw webhook URL and reading the JSON by eye.
+    function updateVersionMarker(backendVersion) {
+      const el = document.getElementById('versionMarker');
+      if (!el) return;
+      let label;
+      if (backendVersion === undefined) {
+        label = 'unreachable';
+      } else if (backendVersion === null || !backendVersion) {
+        label = 'legacy (pre-upgrade script — redeploy needed)';
+      } else {
+        label = backendVersion;
+      }
+      el.innerHTML = `App: v1.2 &middot; Backend: ${label}`;
+    }
+
+    // ---- Pending sync retry queue ---------------------------------------
+    // A failed sync used to just show a warning and then be forgotten —
+    // someone had to remember to hit "Sync" again manually, or the entry
+    // stayed invisible to every other device indefinitely. Failed items
+    // now go in this queue, persisted to localStorage (so it survives a
+    // refresh or the tab being closed), and get retried automatically.
+    function queueForRetry(type, payload) {
+      pendingSyncQueue.push({ id: 'PSQ_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), type, payload, addedAt: new Date().toISOString() });
+      localStorage.setItem('pongamia_pending_sync', JSON.stringify(pendingSyncQueue));
+      updatePendingSyncBadge();
+    }
+
+    function updatePendingSyncBadge() {
+      const badge = document.getElementById('pendingSyncBadge');
+      if (!badge) return;
+      if (pendingSyncQueue.length === 0) {
+        badge.classList.add('hidden');
+        badge.innerText = '';
+      } else {
+        badge.classList.remove('hidden');
+        badge.innerText = `⏳ ${pendingSyncQueue.length} pending sync${pendingSyncQueue.length > 1 ? 's' : ''}`;
+      }
+    }
+
+    let isFlushingSyncQueue = false;
+    async function flushSyncQueue() {
+      if (isFlushingSyncQueue || pendingSyncQueue.length === 0) return;
+      if (!localStorage.getItem('pongamia_webhook')) return;
+      isFlushingSyncQueue = true;
+
+      const stillPending = [];
+      for (const entry of pendingSyncQueue) {
+        const result = await postToWebhook(entry.payload);
+        if (!result.ok) stillPending.push(entry);
+      }
+      const recovered = pendingSyncQueue.length - stillPending.length;
+      pendingSyncQueue = stillPending;
+      localStorage.setItem('pongamia_pending_sync', JSON.stringify(pendingSyncQueue));
+      updatePendingSyncBadge();
+
+      isFlushingSyncQueue = false;
+      if (recovered > 0) {
+        console.log(`Synced ${recovered} previously-failed item(s) from the retry queue.`);
+      }
+    }
+
+    // Retry roughly every minute while the page is open, and immediately
+    // whenever the browser regains connectivity.
+    setInterval(flushSyncQueue, 60000);
+    window.addEventListener('online', flushSyncQueue);
+
+    function populateSearchDropdowns() {
+      const truckSel = document.getElementById('filterTruck');
+      const vendorSel = document.getElementById('filterVendor');
+      const consVendorSel = document.getElementById('filterConsolidatedVendor');
+      
+      truckSel.innerHTML = '<option value="">-- Select Truck ID --</option>';
+      vendorSel.innerHTML = '<option value="">-- Select Vendor --</option>';
+      consVendorSel.innerHTML = '<option value="">-- Select Vendor --</option>';
+
+      let trucks = [...new Set(loggedTransactions.map(t => t.truck_id))].sort();
+      let vendors = [...new Set(loggedTransactions.map(t => t.vendor_name))].sort();
+
+      trucks.forEach(t => { truckSel.innerHTML += `<option value="${t}">${t}</option>`; });
+      vendors.forEach(v => { 
+        vendorSel.innerHTML += `<option value="${v}">${v}</option>`; 
+        consVendorSel.innerHTML += `<option value="${v}">${v}</option>`;
+      });
+    }
+
+    function onGrnFilterChange(truckVal) {
+      document.getElementById('filterVendor').value = "";
+      document.getElementById('vendorGrnToggleBar').classList.add('hidden');
+
+      if (!truckVal) return;
+      renderTraceabilitySheetForGrn(truckVal);
+    }
+
+    function onVendorFilterChange(vendorVal) {
+      document.getElementById('filterTruck').value = "";
+
+      if (!vendorVal) {
+        document.getElementById('vendorGrnToggleBar').classList.add('hidden');
+        return;
+      }
+
+      let vendorTxs = loggedTransactions.filter(t => t.vendor_name === vendorVal);
+      currentVendorGrns = [...new Set(vendorTxs.map(t => t.truck_id))].sort();
+
+      if (currentVendorGrns.length === 0) return;
+
+      activeVendorGrnIndex = 0;
+      renderVendorGrnChips();
+      renderTraceabilitySheetForGrn(currentVendorGrns[0]);
+    }
+
+    function renderVendorGrnChips() {
+      const bar = document.getElementById('vendorGrnToggleBar');
+      const container = document.getElementById('grnChipContainer');
+      bar.classList.remove('hidden');
+
+      container.innerHTML = currentVendorGrns.map((grn, idx) => `
+        <button onclick="switchVendorGrnChip(${idx})" class="px-3 py-1 rounded text-xs font-bold transition-all shadow-sm ${idx === activeVendorGrnIndex ? 'bg-emerald-800 text-white ring-2 ring-emerald-600' : 'bg-white text-emerald-900 hover:bg-emerald-100 border border-emerald-300'}">
+          GRN: ${grn} (${idx + 1}/${currentVendorGrns.length})
+        </button>
+      `).join('');
+    }
+
+    function switchVendorGrnChip(idx) {
+      activeVendorGrnIndex = idx;
+      renderVendorGrnChips();
+      renderTraceabilitySheetForGrn(currentVendorGrns[idx]);
+    }
+
+    function renderTraceabilitySheet() {
+      const truckVal = document.getElementById('filterTruck').value;
+      const vendorVal = document.getElementById('filterVendor').value;
+
+      if (truckVal) {
+        renderTraceabilitySheetForGrn(truckVal);
+      } else if (vendorVal && currentVendorGrns.length > 0) {
+        renderTraceabilitySheetForGrn(currentVendorGrns[activeVendorGrnIndex]);
+      }
+    }
+
+    function renderTraceabilitySheetForGrn(grnId) {
+      let filtered = loggedTransactions.filter(t => t.truck_id === grnId);
+      if (filtered.length === 0) return;
+
+      let first = filtered[0];
+      document.getElementById('pdfVendorName').innerText = first.vendor_name;
+      document.getElementById('pdfTruckId').innerText = first.truck_id;
+      document.getElementById('pdfPlaceDate').innerText = `${first.place}, ${first.date}`;
+      document.getElementById('pdfLoggedBy').innerText = first.logged_by;
+
+      const sigPreviewDiv = document.getElementById('pdfSigImgPreview');
+      const resolvedSig = (vendorSignatures && vendorSignatures[first.vendor_name]) || first.vendor_sig_base64 || '';
+      if (resolvedSig) {
+        sigPreviewDiv.innerHTML = `<img src="${resolvedSig}" class="h-10 object-contain mb-1" alt="Vendor Signature">`;
+      } else {
+        sigPreviewDiv.innerHTML = `<div class="h-10"></div>`;
+      }
+
+      const tbody = document.getElementById('pdfTableBody');
+      tbody.innerHTML = '';
+      let grantTotalKg = 0;
+      const mult = unitMultiplier();
+
+      const itemMap = {};
+      filtered.forEach(t => {
+        t.items.forEach(i => {
+          const key = i.ref_number || i.village_id;
+          if (!itemMap[key]) {
+            itemMap[key] = {
+              ref_number: i.ref_number,
+              village_name: i.village_name,
+              block: i.block,
+              allocated_kg: 0
+            };
+          }
+          itemMap[key].allocated_kg += i.allocated_kg;
+        });
+      });
+
+      Object.values(itemMap).forEach(i => {
+        grantTotalKg += i.allocated_kg;
+        let dispQty = (i.allocated_kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+        let tr = document.createElement('tr');
+        tr.className = "border-b border-gray-300";
+        tr.innerHTML = `
+          <td class="border-r border-gray-800 p-2 font-mono">${i.ref_number}</td>
+          <td class="border-r border-gray-800 p-2 font-bold">${i.village_name}</td>
+          <td class="border-r border-gray-800 p-2">${i.block}</td>
+          <td class="p-2 text-right font-bold">${dispQty}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('pdfTotalQty').innerText = (grantTotalKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2}) + ' ' + currentUnit;
+    }
+
+    async function deleteSelectedGrn() {
+      let activeGrnId = document.getElementById('filterTruck').value;
+      if (!activeGrnId && currentVendorGrns.length > 0) {
+        activeGrnId = currentVendorGrns[activeVendorGrnIndex];
+      }
+
+      if (!activeGrnId) {
+        alert("Please select a Traceability Sheet / Truck ID to delete.");
+        return;
+      }
+
+      const enteredPin = prompt(`🔒 JUNIOR MANAGER AUTHORIZATION REQUIRED:\n\nEnter Manager Security PIN to delete Traceability Sheet '${activeGrnId}':`);
+      if (enteredPin === null) return;
+
+      if (enteredPin !== MANAGER_DELETE_PIN) {
+        alert("❌ ACCESS DENIED: Invalid Junior Manager Security PIN. Deletion cancelled.");
+        return;
+      }
+
+      loggedTransactions = loggedTransactions.filter(t => t.truck_id !== activeGrnId);
+      localStorage.setItem('pongamia_logs', JSON.stringify(loggedTransactions));
+
+      // This used to only clear local state — the rows stayed in the
+      // cloud sheet and would reappear on the next sync (here or on any
+      // other device). Now actually removes them from the shared ledger.
+      const deleteResult = await postToWebhook({ type: 'delete_transaction', truck_id: activeGrnId });
+      if (!deleteResult.ok) {
+        queueForRetry('delete_transaction', { type: 'delete_transaction', truck_id: activeGrnId });
+      }
+      logAuditEvent('delete_transaction', `Truck ID ${activeGrnId}`);
+
+      recalculateMasterSourcedFromLogs();
+      populateSearchDropdowns();
+
+      document.getElementById('filterTruck').value = "";
+      document.getElementById('filterVendor').value = "";
+      document.getElementById('vendorGrnToggleBar').classList.add('hidden');
+
+      document.getElementById('pdfVendorName').innerText = '-';
+      document.getElementById('pdfTruckId').innerText = '-';
+      document.getElementById('pdfPlaceDate').innerText = '-';
+      document.getElementById('pdfLoggedBy').innerText = '-';
+      document.getElementById('pdfSigImgPreview').innerHTML = `<div class="h-10"></div>`;
+      document.getElementById('pdfTableBody').innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400">Select a Truck ID or Vendor above to render certificate.</td></tr>`;
+      document.getElementById('pdfTotalQty').innerText = '0';
+
+      alert(deleteResult.ok
+        ? `✅ Traceability Sheet '${activeGrnId}' deleted successfully — removed from this device and the shared cloud sheet.`
+        : `⚠️ Traceability Sheet '${activeGrnId}' removed from this device, but the cloud deletion failed (${deleteResult.reason}). It's queued to retry — until then it may still show on other devices.`);
+    }
+
+    // A4 PRINT LAYOUT ENGINE (ACCOMMODATES 22 ROWS PER PAGE)
+    function buildSinglePageHtml(first, pageItems, totalDisp, currentPage, totalPages, isFirstPageOverall = false) {
+      let rowsHtml = '';
+      pageItems.forEach(i => {
+        let dispQty = (i.allocated_kg * unitMultiplier()).toLocaleString(undefined, {maximumFractionDigits: 2});
+        rowsHtml += `
+          <tr style="border-bottom: 1px solid #111827;">
+            <td style="border-right: 1px solid #111827; padding: 8px 10px; font-family: monospace; font-size: 12px; font-weight: bold; width: 20%; box-sizing: border-box; word-break: break-word;">${i.ref_number}</td>
+            <td style="border-right: 1px solid #111827; padding: 8px 10px; font-weight: bold; font-size: 12px; width: 40%; box-sizing: border-box; word-break: break-word;">${i.village_name}</td>
+            <td style="border-right: 1px solid #111827; padding: 8px 10px; font-size: 12px; font-weight: 500; width: 22%; box-sizing: border-box; word-break: break-word;">${i.block}</td>
+            <td style="padding: 8px 10px; text-align: right; font-weight: bold; font-size: 12px; width: 18%; box-sizing: border-box; white-space: nowrap;">${dispQty}</td>
+          </tr>
+        `;
+      });
+
+      const breakStyle = isFirstPageOverall ? '' : 'page-break-before: always; break-before: page;';
+
+      const resolvedSig = (vendorSignatures && vendorSignatures[first.vendor_name]) || first.vendor_sig_base64 || '';
+      const sigImageTag = resolvedSig
+        ? `<img src="${resolvedSig}" style="height: 36px; object-fit: contain; margin: 0 auto 2px auto;" alt="Vendor Signature">` 
+        : `<div style="height: 36px;"></div>`;
+
+      return `
+        <div style="width: 720px; padding: 20px; box-sizing: border-box; background-color: #ffffff; color: #000000; ${breakStyle} margin: 0 auto;">
+          <div>
+            <div style="text-align: center; font-weight: bold; font-size: 17px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 6px; margin-bottom: 12px; text-transform: uppercase;">
+              Traceability Sheet
+            </div>
+            
+            <div style="border: 1px solid #111827; margin-bottom: 12px; font-size: 12px;">
+              <div style="display: flex; border-bottom: 1px solid #111827;">
+                <div style="width: 33.33%; padding: 6px 10px; font-weight: bold; border-right: 1px solid #111827;">Vendor Name</div>
+                <div style="width: 66.66%; padding: 6px 10px; font-weight: 600;">${first.vendor_name || '-'}</div>
+              </div>
+              <div style="display: flex;">
+                <div style="width: 33.33%; padding: 6px 10px; font-weight: bold; border-right: 1px solid #111827;">Truck Arrival ID / GRN</div>
+                <div style="width: 66.66%; padding: 6px 10px; font-family: monospace; font-weight: bold;">${first.truck_id || '-'}</div>
+              </div>
+            </div>
+
+            <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: 1px solid #111827; font-size: 12px; margin-bottom: 12px;">
+              <colgroup>
+                <col style="width: 20%;">
+                <col style="width: 40%;">
+                <col style="width: 22%;">
+                <col style="width: 18%;">
+              </colgroup>
+              <thead>
+                <tr style="background-color: #f3f4f6; border-bottom: 1.5px solid #111827;">
+                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left; font-size: 12px; width: 20%;">Ref Number</th>
+                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left; font-size: 12px; width: 40%;">Village Name</th>
+                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left; font-size: 12px; width: 22%;">Block</th>
+                  <th style="padding: 8px; text-align: right; font-size: 12px; width: 18%;">Qty (in ${currentUnit})</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml}
+              </tbody>
+              <tfoot>
+                <tr style="border-top: 2px solid #111827; font-weight: bold; background-color: #ffffff;">
+                  <td colspan="3" style="padding: 8px; text-align: right; border-right: 1px solid #111827; text-transform: uppercase; font-size: 12px;">Total Qty (in ${currentUnit})</td>
+                  <td style="padding: 8px; text-align: right; font-size: 12px; white-space: nowrap;">${totalDisp} ${currentUnit}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div>
+            <p style="font-size: 10px; font-style: italic; color: #374151; margin-top: 8px; margin-bottom: 14px;">
+              I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.
+            </p>
+
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; padding-top: 8px; border-top: 1px solid #111827; margin-top: 8px;">
+              <div>
+                <p style="font-size: 12px;"><strong>Place, Date:</strong> ${first.place || ''}, ${first.date || ''}</p>
+              </div>
+              <div style="text-align: center;">
+                ${sigImageTag}
+                <div style="width: 180px; border-top: 1px solid #111827; padding-top: 3px; font-weight: bold; font-size: 12px;">Signature of Vendor</div>
+                <div style="font-size: 10px; color: #4b5563; margin-top: 2px;">Logged By: ${first.logged_by || 'Chethan H C'} (Page ${currentPage} of ${totalPages})</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ---- Dynamic PDF pagination -----------------------------------------
+    // pageSize used to be a hardcoded guess (22), which is why some reports
+    // left a near-empty final page and others got cut awkwardly — a fixed
+    // number can't match how tall the content actually renders. This
+    // instead renders the header/footer and every row into a hidden,
+    // off-screen copy of the same markup, measures their real pixel
+    // heights, and packs each printed page until it's actually full —
+    // matching the physical A4 page html2pdf produces.
+    const PDF_PAGE_WIDTH_IN = 8.27;   // A4
+    const PDF_PAGE_HEIGHT_IN = 11.69; // A4
+    const PDF_MARGIN_IN = 0.2;        // matches opt.margin in the export functions below
+    const PDF_CONTENT_WIDTH_PX = 720; // matches the width used in buildSinglePageHtml
+    const PDF_SAFETY_MARGIN_PX = 24;  // buffer against measurement rounding
+
+    function getPdfPageCapacityPx() {
+      const contentWidthIn = PDF_PAGE_WIDTH_IN - (PDF_MARGIN_IN * 2);
+      const pxPerInch = PDF_CONTENT_WIDTH_PX / contentWidthIn;
+      const contentHeightIn = PDF_PAGE_HEIGHT_IN - (PDF_MARGIN_IN * 2);
+      return contentHeightIn * pxPerInch;
+    }
+
+    function withHiddenProbe(html, callback) {
+      const probe = document.createElement('div');
+      probe.style.position = 'absolute';
+      probe.style.left = '-9999px';
+      probe.style.top = '0';
+      probe.style.visibility = 'hidden';
+      probe.innerHTML = html;
+      document.body.appendChild(probe);
+      let result;
+      try {
+        result = callback(probe);
+      } finally {
+        document.body.removeChild(probe);
+      }
+      return result;
+    }
+
+    // Splits `items` into pages sized so each page's rendered height
+    // (header + rows + footer) actually fits one physical A4 page.
+    function paginateItemsForPdf(tx, items) {
+      if (items.length === 0) return [[]];
+
+      // Overhead = header block + table header row + footer/signature
+      // block, measured with an empty table body.
+      const overheadHtml = buildSinglePageHtml(tx, [], '0', 1, 1, true);
+      const overheadPx = withHiddenProbe(overheadHtml, (probe) => probe.firstElementChild.offsetHeight);
+
+      // Row heights, measured with every row actually rendered (so text
+      // wrapping in long village/block names is accounted for).
+      const allRowsHtml = buildSinglePageHtml(tx, items, '0', 1, 1, true);
+      const rowHeights = withHiddenProbe(allRowsHtml, (probe) => {
+        const rows = probe.querySelectorAll('tbody tr');
+        return Array.from(rows).map(r => r.offsetHeight || 34);
+      });
+
+      const capacityPx = getPdfPageCapacityPx();
+      const availableForRows = Math.max(capacityPx - overheadPx - PDF_SAFETY_MARGIN_PX, 100);
+
+      const pages = [];
+      let currentPage = [];
+      let currentHeight = 0;
+
+      items.forEach((item, idx) => {
+        const h = rowHeights[idx] || 34;
+        if (currentPage.length > 0 && (currentHeight + h) > availableForRows) {
+          pages.push(currentPage);
+          currentPage = [];
+          currentHeight = 0;
+        }
+        currentPage.push(item);
+        currentHeight += h;
+      });
+      if (currentPage.length > 0) pages.push(currentPage);
+
+      return pages;
+    }
+
+    async function exportToPdf() {
+      let activeGrnId = document.getElementById('filterTruck').value;
+      if (!activeGrnId && currentVendorGrns.length > 0) {
+        activeGrnId = currentVendorGrns[activeVendorGrnIndex];
+      }
+
+      if (!activeGrnId) {
+        alert("Please select a Truck ID or Vendor first to generate PDF.");
+        return;
+      }
+
+      let filtered = loggedTransactions.filter(t => t.truck_id === activeGrnId);
+
+      if (filtered.length === 0) return;
+
+      let first = filtered[0];
+      const grnNumber = first.truck_id || 'GRN_Report';
+      const mult = unitMultiplier();
+
+      const itemMap = {};
+      let totalQtyKg = 0;
+      filtered.forEach(t => {
+        if (t.items && Array.isArray(t.items)) {
+          t.items.forEach(i => {
+            const key = i.ref_number || i.village_id;
+            if (!itemMap[key]) {
+              itemMap[key] = { ...i, allocated_kg: 0 };
+            }
+            itemMap[key].allocated_kg += i.allocated_kg;
+          });
+        }
+      });
+
+      const allItems = Object.values(itemMap);
+      allItems.forEach(i => totalQtyKg += i.allocated_kg);
+      const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+
+      const pages = paginateItemsForPdf(first, allItems);
+      const totalPages = pages.length;
+
+      const pdfContainer = document.getElementById('pdfContainer');
+
+      let multiPageHtml = '';
+      pages.forEach((pageItems, p) => {
+        multiPageHtml += buildSinglePageHtml(first, pageItems, totalDisp, p + 1, totalPages, p === 0);
+      });
+
+      pdfContainer.innerHTML = multiPageHtml;
+
+      window.scrollTo(0, 0);
+      const opt = {
+        margin:       [0.2, 0.2, 0.2, 0.2],
+        filename:     `${grnNumber}_Traceability_Sheet_${currentUnit}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+      };
+
+      try {
+        await html2pdf().set(opt).from(pdfContainer).save();
+      } finally {
+        renderTraceabilitySheet();
+      }
+    }
+
+    async function downloadConsolidatedPdf() {
+      const fromDate = document.getElementById('pdfFromDate').value;
+      const toDate = document.getElementById('pdfToDate').value;
+
+      if (!fromDate || !toDate) {
+        alert("Please select both 'From Date' and 'To Date'.");
+        return;
+      }
+
+      let filtered = loggedTransactions.filter(t => {
+        if (!t.date) return false;
+        let d = t.date.substring(0, 10);
+        return d >= fromDate && d <= toDate;
+      });
+
+      if (filtered.length === 0) {
+        alert(`No logged transactions found between ${fromDate} and ${toDate}.`);
+        return;
+      }
+
+      filtered.sort((a, b) => (a.date + a.truck_id).localeCompare(b.date + b.truck_id));
+
+      const pdfContainer = document.getElementById('pdfContainer');
+      const mult = unitMultiplier();
+
+      let multiPageHtml = '';
+      let isVeryFirstPage = true;
+
+      filtered.forEach((tx) => {
+        const itemMap = {};
+        let totalQtyKg = 0;
+
+        if (tx.items && Array.isArray(tx.items)) {
+          tx.items.forEach(i => {
+            const key = i.ref_number || i.village_id;
+            if (!itemMap[key]) {
+              itemMap[key] = { ...i, allocated_kg: 0 };
+            }
+            itemMap[key].allocated_kg += i.allocated_kg;
+          });
+        }
+
+        const allItems = Object.values(itemMap);
+        allItems.forEach(i => totalQtyKg += i.allocated_kg);
+        const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+
+        const pages = paginateItemsForPdf(tx, allItems);
+        const totalPages = pages.length;
+
+        pages.forEach((pageItems, p) => {
+          multiPageHtml += buildSinglePageHtml(tx, pageItems, totalDisp, p + 1, totalPages, isVeryFirstPage);
+          isVeryFirstPage = false;
+        });
+      });
+
+      pdfContainer.innerHTML = multiPageHtml;
+
+      window.scrollTo(0, 0);
+      const opt = {
+        margin:       [0.2, 0.2, 0.2, 0.2],
+        filename:     `Consolidated_Traceability_Report_${fromDate}_to_${toDate}_${currentUnit}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+      };
+
+      try {
+        await html2pdf().set(opt).from(pdfContainer).save();
+      } finally {
+        renderTraceabilitySheet();
+      }
+    }
+
+    async function downloadVendorConsolidatedPdf() {
+      const selectedVendor = document.getElementById('filterConsolidatedVendor').value;
+
+      if (!selectedVendor) {
+        alert("Please select a vendor first.");
+        return;
+      }
+
+      let filtered = loggedTransactions.filter(t => t.vendor_name === selectedVendor);
+
+      if (filtered.length === 0) {
+        alert(`No logged transactions found for vendor: ${selectedVendor}.`);
+        return;
+      }
+
+      filtered.sort((a, b) => (a.date + a.truck_id).localeCompare(b.date + b.truck_id));
+
+      const pdfContainer = document.getElementById('pdfContainer');
+      const mult = unitMultiplier();
+
+      let multiPageHtml = '';
+      let isVeryFirstPage = true;
+
+      filtered.forEach((tx) => {
+        const itemMap = {};
+        let totalQtyKg = 0;
+
+        if (tx.items && Array.isArray(tx.items)) {
+          tx.items.forEach(i => {
+            const key = i.ref_number || i.village_id;
+            if (!itemMap[key]) {
+              itemMap[key] = { ...i, allocated_kg: 0 };
+            }
+            itemMap[key].allocated_kg += i.allocated_kg;
+          });
+        }
+
+        const allItems = Object.values(itemMap);
+        allItems.forEach(i => totalQtyKg += i.allocated_kg);
+        const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
+
+        const pages = paginateItemsForPdf(tx, allItems);
+        const totalPages = pages.length;
+
+        pages.forEach((pageItems, p) => {
+          multiPageHtml += buildSinglePageHtml(tx, pageItems, totalDisp, p + 1, totalPages, isVeryFirstPage);
+          isVeryFirstPage = false;
+        });
+      });
+
+      pdfContainer.innerHTML = multiPageHtml;
+
+      window.scrollTo(0, 0);
+      const opt = {
+        margin:       [0.2, 0.2, 0.2, 0.2],
+        filename:     `Consolidated_Vendor_Report_${selectedVendor.replace(/\s+/g, '_')}_${currentUnit}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
+      };
+
+      try {
+        await html2pdf().set(opt).from(pdfContainer).save();
+      } finally {
+        renderTraceabilitySheet();
+      }
+    }
+
+    function exportNonSurveyedAuditCsv() {
+      const mult = unitMultiplier();
+      let csv = `GRN_Truck_ID,Date,Vendor_Name,Place,Logged_By,Ref_Number,Village_Name,Block,District,Audit_Status,Allocated_Qty_${currentUnit}\n`;
+      let nonSurveyedFound = 0;
+
+      loggedTransactions.forEach(t => {
+        if (t.items && Array.isArray(t.items)) {
+          t.items.forEach(i => {
+            let isAdhoc = (i.ref_number && i.ref_number.startsWith('adhoc_')) || (i.status && i.status.includes('Non-Surveyed'));
+            let existsInStore = adhocVillagesStore.some(a => a.ref_number === i.ref_number);
+
+            if (isAdhoc && existsInStore) {
+              nonSurveyedFound++;
+              let dispQty = (i.allocated_kg * mult).toFixed(2);
+              csv += `"${t.truck_id}","${t.date}","${t.vendor_name}","${t.place}","${t.logged_by}","${i.ref_number}","${i.village_name}","${i.block}","${i.district || ''}","Non-Surveyed (Ad-Hoc)",${dispQty}\n`;
+            }
+          });
+        }
+      });
+
+      if (nonSurveyedFound === 0) {
+        alert("No active allocations for Non-Surveyed (Ad-Hoc) villages were found in the logged records.");
+        return;
+      }
+
+      const blob = document.createElement('a');
+      blob.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      blob.download = `Non_Surveyed_Villages_Audit_Report_${currentUnit}.csv`;
+      blob.click();
+    }
+
+    function exportLoggedCsv() {
+      const mult = unitMultiplier();
+      let csv = `Date,Place,Vendor_Name,Truck_ID,Logged_By,Ref_Number,Village_Name,Block,Allocated_Qty_${currentUnit}\n`;
+      loggedTransactions.forEach(t => {
+        const itemMap = {};
+        t.items.forEach(i => {
+          const key = i.ref_number || i.village_id;
+          if (!itemMap[key]) {
+            itemMap[key] = { ...i, allocated_kg: 0 };
+          }
+          itemMap[key].allocated_kg += i.allocated_kg;
+        });
+
+        Object.values(itemMap).forEach(i => {
+          let dispQty = (i.allocated_kg * mult).toFixed(2);
+          csv += `"${t.date}","${t.place}","${t.vendor_name}","${t.truck_id}","${t.logged_by}","${i.ref_number}","${i.village_name}","${i.block}",${dispQty}\n`;
+        });
+      });
+      const blob = document.createElement('a');
+      blob.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      blob.download = `All_Logged_Traceability_Data_${currentUnit}.csv`;
+      blob.click();
+    }
+
+    function saveWebhookUrl() {
+      const url = document.getElementById('webhookUrl').value.trim();
+      localStorage.setItem('pongamia_webhook', url);
+      fetchCloudLedger();
+      alert("Cloud Sync Webhook saved!");
+    }
+
+    // Both sync functions below deliberately avoid `mode: 'no-cors'`.
+    // That mode was originally used because a POST with
+    // `Content-Type: application/json` triggers a CORS preflight (an
+    // OPTIONS request), and Apps Script web apps don't handle preflight —
+    // so the POST would otherwise fail outright. `no-cors` "worked" by
+    // letting the request go through, but it also makes the response
+    // completely opaque: there is no way to tell whether the write
+    // actually succeeded. That's exactly why a failed sync (e.g. the
+    // sheet rejecting a write) looked identical to a successful one.
+    //
+    // Using `Content-Type: text/plain;charset=utf-8` instead keeps the
+    // request in the browser's CORS "simple request" category, so no
+    // preflight happens — Apps Script still reads the raw JSON body fine
+    // via e.postData.contents — and the real response comes back
+    // readable, so we can actually confirm success or surface the error.
+    async function postToWebhook(payload) {
+      const url = localStorage.getItem('pongamia_webhook');
+      if (!url) return { ok: false, reason: 'No cloud sync webhook configured (see Tab 3).' };
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json && json.status === 'success') return { ok: true };
+        return { ok: false, reason: (json && json.message) || 'Server reported an error.' };
+      } catch (e) {
+        return { ok: false, reason: e.message || 'Network error.' };
+      }
+    }
+
+    async function syncSingleTransactionToCloud(tx) {
+      return postToWebhook(tx);
+    }
+
+    async function syncVendorSignatureToCloud(vendorName, base64) {
+      return postToWebhook({ type: 'vendor_signature', vendor_name: vendorName, vendor_sig_base64: base64 });
+    }
+
+    // Not real authentication — anyone with the PIN can still type any
+    // name — but it's a genuine improvement over no record at all of who
+    // deleted what, without changing how the app is deployed or requiring
+    // anyone to sign in. Asked once per browser session, then reused, so
+    // it isn't a fresh prompt on every single action.
+    let auditPerformedByName = null;
+    async function logAuditEvent(action, details) {
+      if (!auditPerformedByName) {
+        auditPerformedByName = prompt("For the audit log — your name:") || 'Unknown';
+      }
+      const payload = { type: 'audit_log', action, details, performed_by: auditPerformedByName };
+      const result = await postToWebhook(payload);
+      if (!result.ok) {
+        queueForRetry('audit_log', payload);
+      }
+    }
+
+    function clearAllLogs() {
+      const enteredPin = prompt("🔒 JUNIOR MANAGER AUTHORIZATION REQUIRED:\n\nEnter Manager Security PIN to clear local cache:");
+      if (enteredPin === null) return;
+      if (enteredPin !== MANAGER_DELETE_PIN) {
+        alert("❌ ACCESS DENIED: Invalid Junior Manager Security PIN.");
+        return;
+      }
+
+      localStorage.removeItem('pongamia_logs');
+      localStorage.removeItem('pongamia_adhoc_villages');
+      localStorage.removeItem('pongamia_vendor_signatures');
+      loggedTransactions = [];
+      adhocVillagesStore = [];
+      alert("Local cache cleared successfully.");
+      location.reload();
+    }
+  </script>
+</body>
+</html>
