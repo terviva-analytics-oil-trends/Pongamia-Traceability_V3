@@ -316,16 +316,16 @@
                 <span>💾 Save & Sync Transaction</span>
               </button>
               <span id="resultCount" class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">0 Villages Found</span>
-              <button id="searchSortToggleBtn" onclick="toggleSearchSortRow()" class="text-xs text-gray-500 hover:text-gray-800 font-bold no-print" title="Hide/show search and sort — useful to reclaim screen space on a phone">🔍 Search/Sort ▲</button>
             </div>
           </div>
 
-          <!-- Quick village search — jump straight to a village instead of scrolling the distance-sorted list, which matters most for a big multi-village delivery and on mobile. Collapsible via the toggle above, mainly to reclaim vertical space on small screens. -->
-          <div id="searchSortRow" class="p-2 bg-amber-50 border-b border-amber-100 flex flex-col sm:flex-row gap-2">
+          <!-- Quick village search — jump straight to a village instead of scrolling the distance-sorted list, which matters most for a big multi-village delivery and on mobile. -->
+          <div class="p-2 bg-amber-50 border-b border-amber-100 flex flex-col sm:flex-row gap-2">
             <input type="text" id="villageQuickSearch" oninput="filterVillageTableBySearch()" placeholder="🔎 Type a village name to jump to it…" class="border border-amber-300 rounded p-2 text-sm flex-1 bg-white">
             <select id="villageSortSelect" onchange="resortVillageTable(this.value)" class="border border-amber-300 rounded p-2 text-sm bg-white sm:w-56">
               <option value="distance" selected>Sort: Distance (nearest first)</option>
               <option value="remaining">Sort: Remaining Capacity (most first)</option>
+              <option value="adhoc_first">Sort: Non-Surveyed Villages First</option>
             </select>
           </div>
         </div>
@@ -334,7 +334,7 @@
           <table class="w-full text-left text-xs">
             <thead class="bg-gray-50 text-gray-600 uppercase border-b">
               <tr>
-                <th class="p-2 sticky left-0 z-10 bg-gray-50">Village Name</th>
+                <th class="p-2">Village Name</th>
                 <th class="p-2">Ref No</th>
                 <th class="p-2">District / Block / GP</th>
                 <th class="p-2">Status</th>
@@ -686,18 +686,6 @@
       }
     }
     window.addEventListener('resize', updateStickyOffsets);
-
-    // Defaults to expanded — nothing changes for anyone who doesn't touch
-    // this. Mainly useful on a phone, where the frozen toolbar above the
-    // village table permanently uses some screen height; collapsing this
-    // row reclaims a bit of that without losing the search/sort controls
-    // (still one tap away).
-    function toggleSearchSortRow() {
-      const row = document.getElementById('searchSortRow');
-      const btn = document.getElementById('searchSortToggleBtn');
-      const hidden = row.classList.toggle('hidden');
-      btn.innerText = hidden ? '🔍 Search/Sort ▼' : '🔍 Search/Sort ▲';
-    }
 
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('appVersionTag').innerText = APP_VERSION;
@@ -1433,6 +1421,20 @@
       return primaryCompare(a, b);
     }
 
+    // The inverse of the above, for the "Non-Surveyed Villages First" sort
+    // option — used when the person specifically wants to review or
+    // allocate to ad-hoc villages rather than have them always at the
+    // bottom. Still alphabetical within the ad-hoc group; surveyed
+    // villages behind them keep whatever secondary order is passed in.
+    function compareWithAdhocFirst(a, b, primaryCompare) {
+      const aAdhoc = a.status && a.status.includes('Non-Surveyed');
+      const bAdhoc = b.status && b.status.includes('Non-Surveyed');
+      if (aAdhoc && !bAdhoc) return -1;
+      if (!aAdhoc && bAdhoc) return 1;
+      if (aAdhoc && bAdhoc) return (a.village_name || '').localeCompare(b.village_name || '');
+      return primaryCompare(a, b);
+    }
+
     function searchNearbyVillages() {
       const vLat = parseFloat(document.getElementById('vendorLat').value);
       const vLng = parseFloat(document.getElementById('vendorLng').value);
@@ -1464,14 +1466,14 @@
     // radius search — the underlying set of villages doesn't change, only
     // the order they're presented in. A new radius search always resets
     // this back to distance (see searchNearbyVillages above); switching
-    // to "remaining capacity" is a deliberate, temporary choice for
-    // allocating a specific delivery efficiently. Either way, ad-hoc
-    // villages stay grouped after surveyed ones — see
-    // compareWithAdhocLast above.
+    // to "remaining capacity" or "non-surveyed first" is a deliberate,
+    // temporary choice for the task at hand.
     function resortVillageTable(criterion) {
       captureTableInputs();
       if (criterion === 'remaining') {
         currentFilteredVillages.sort((a, b) => compareWithAdhocLast(a, b, (x, y) => (y.remaining_kg || 0) - (x.remaining_kg || 0)));
+      } else if (criterion === 'adhoc_first') {
+        currentFilteredVillages.sort((a, b) => compareWithAdhocFirst(a, b, (x, y) => x.dist - y.dist));
       } else {
         currentFilteredVillages.sort((a, b) => compareWithAdhocLast(a, b, (x, y) => x.dist - y.dist));
       }
@@ -1520,7 +1522,7 @@
         tr.className = isAdhoc ? "bg-amber-50/50 hover:bg-amber-100/50" : "hover:bg-gray-50";
         tr.setAttribute('data-village-name', v.village_name.toLowerCase());
         tr.innerHTML = `
-          <td class="p-2 font-bold text-gray-800 sticky left-0 z-[5] ${isAdhoc ? 'bg-amber-50' : 'bg-white'}">${v.village_name}</td>
+          <td class="p-2 font-bold text-gray-800">${v.village_name}</td>
           <td class="p-2 font-mono text-gray-500">${v.ref_number}</td>
           <td class="p-2 text-gray-600">${v.district} / ${v.block} / ${v.gp}</td>
           <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] ${isAdhoc ? 'bg-amber-200 text-amber-900 font-bold' : (v.status.includes('Audit') ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800')}">${v.status}</span></td>
