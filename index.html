@@ -4,27 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pongamia Field Procurement & Traceability Engine</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%B1%3C/text%3E%3C/svg%3E">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <style>
     .tab-active { border-bottom: 3px solid #047857; color: #047857; font-weight: bold; }
     @media print { .no-print { display: none !important; } }
   </style>
 </head>
-<body class="bg-gray-100 font-sans text-gray-900">
+<body class="bg-stone-50 font-sans text-gray-900">
 
   <!-- Webhook Missing Warning Banner -->
   <div id="webhookAlertBanner" class="bg-amber-500 text-slate-950 px-4 py-2 text-xs font-bold flex justify-between items-center hidden no-print">
-    <span>⚠️ CLOUD SYNC NOT CONFIGURED ON THIS DEVICE: Paste your Google Sheet Webhook URL in Tab 3 to enable live team sheet sharing!</span>
-    <button onclick="switchTab('sync')" class="bg-slate-900 text-white px-2 py-1 rounded text-[10px] uppercase font-extrabold">Setup Tab 3</button>
+    <span>⚠️ CLOUD SYNC NOT CONFIGURED ON THIS DEVICE: Paste your Google Sheet Webhook URL in Tab 4 to enable live team sheet sharing!</span>
+    <button onclick="switchTab('sync')" class="bg-slate-900 text-white px-2 py-1 rounded text-[10px] uppercase font-extrabold">Setup Tab 4</button>
   </div>
 
   <!-- Main Header -->
   <header class="bg-emerald-900 text-white p-3 px-4 shadow-md flex justify-between items-center flex-wrap gap-2">
-    <div>
-      <h1 class="text-lg font-bold tracking-tight">Pongamia Field Procurement & Traceability Engine</h1>
-      <p class="text-[11px] text-emerald-200">Developed by Chethan H C, JM Proc. Karnataka</p>
-      <p class="text-[10px] text-emerald-300 font-mono" id="versionMarker">App: v1.2 &middot; Backend: checking&hellip;</p>
+    <div class="flex items-center space-x-3">
+      <img src="https://images.squarespace-cdn.com/content/v1/6807ef89f1fae3790530419d/f4adb065-418e-434f-b8d7-1e6f5cffa967/Terviva_2022_Logo_White_CMYK.png" alt="Terviva" class="h-7 w-auto opacity-90" onerror="this.style.display='none'">
+      <div>
+        <h1 class="text-lg font-bold tracking-tight">Pongamia Field Procurement & Traceability Engine</h1>
+        <p class="text-[11px] text-emerald-200">Developed by Chethan H C, JM Proc. Karnataka <span class="text-emerald-400">· <span id="appVersionTag"></span></span></p>
+      </div>
     </div>
     <div class="flex items-center space-x-2">
       <!-- Unit Selection -->
@@ -51,12 +55,12 @@
   </header>
 
   <!-- Navigation Tabs -->
-  <div class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-20 no-print">
-    <div class="max-w-7xl mx-auto flex space-x-8 px-4">
-      <button onclick="switchTab('log')" id="tab-log" class="py-3 px-2 tab-active">1. Log Sourcing Transaction</button>
-      <button onclick="switchTab('search')" id="tab-search" class="py-3 px-2 text-gray-500 hover:text-emerald-700">2. Traceability Search & Audit</button>
-      <button onclick="switchTab('summary')" id="tab-summary" class="py-3 px-2 text-gray-500 hover:text-emerald-700">3. Summary & Reports</button>
-      <button onclick="switchTab('sync')" id="tab-sync" class="py-3 px-2 text-gray-500 hover:text-emerald-700">4. Cloud Sync Setup</button>
+  <div id="mainNavBar" class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-20 no-print">
+    <div class="max-w-7xl mx-auto flex overflow-x-auto space-x-4 sm:space-x-8 px-4">
+      <button onclick="switchTab('log')" id="tab-log" class="py-3 px-2 tab-active whitespace-nowrap"><span class="hidden sm:inline">1. Log Sourcing Transaction</span><span class="sm:hidden">1. Log</span></button>
+      <button onclick="switchTab('search')" id="tab-search" class="py-3 px-2 text-gray-500 hover:text-emerald-700 whitespace-nowrap"><span class="hidden sm:inline">2. Traceability Reports</span><span class="sm:hidden">2. Reports</span></button>
+      <button onclick="switchTab('summary')" id="tab-summary" class="py-3 px-2 text-gray-500 hover:text-emerald-700 whitespace-nowrap"><span class="hidden sm:inline">3. Summary</span><span class="sm:hidden">3. Summary</span></button>
+      <button onclick="switchTab('sync')" id="tab-sync" class="py-3 px-2 text-gray-500 hover:text-emerald-700 whitespace-nowrap"><span class="hidden sm:inline">4. Cloud Sync Setup</span><span class="sm:hidden">4. Sync</span></button>
     </div>
   </div>
 
@@ -78,7 +82,7 @@
           </ul>
         </div>
         <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
-          <h4 class="font-bold text-blue-900 uppercase mb-1">Tab 2: Audit & Late Signature Attachment</h4>
+          <h4 class="font-bold text-blue-900 uppercase mb-1">Tab 2: Reports & Signatures</h4>
           <ul class="list-disc pl-4 space-y-1 text-[11px]">
             <li><strong>Retroactive Signature Update:</strong> Select a vendor and click <em>✏️ Upload Vendor Signature</em> to apply a signature image to all existing sheets for that vendor globally.</li>
             <li><strong>Protected Deletion:</strong> Requires Junior Manager Security PIN (`1234`).</li>
@@ -124,18 +128,19 @@
             <label class="block text-amber-900 font-bold">Procured Qty from Vendor (<span class="unitLbl">KG</span>)</label>
             <input type="number" step="any" id="nsProcuredQty" placeholder="e.g. 500" class="border border-amber-400 bg-amber-50 rounded p-2 w-full mt-0.5 font-bold text-amber-900">
           </div>
-          <button onclick="submitNewVillageEntry()" class="w-full bg-amber-600 text-white text-xs py-2 rounded font-bold hover:bg-amber-700 shadow">
+          <button onclick="submitNewVillageEntry()" class="w-full bg-[#B5651D] text-white text-xs py-2 rounded font-bold hover:bg-[#9C5719] shadow">
             ➕ Add Village to Allocation Table
           </button>
         </div>
 
-        <!-- Edit/Delete Management Box -->
+        <!-- Find/Select/Edit/Delete Management Box -->
         <div class="border-t pt-3 space-y-2">
-          <h4 class="font-bold text-slate-800 uppercase text-[11px]">✏️ Manage Non-Surveyed Villages (PIN Required)</h4>
+          <h4 class="font-bold text-slate-800 uppercase text-[11px]">✏️ Find an Existing Non-Surveyed Village</h4>
           <div class="flex space-x-2">
             <select id="nsExistingDropdown" class="border rounded p-2 w-full bg-slate-50 font-semibold text-xs">
-              <option value="">-- Select Village to Edit / Delete --</option>
+              <option value="">-- Select Village --</option>
             </select>
+            <button onclick="selectAdhocVillageForAllocation()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-2.5 py-1 rounded text-xs font-bold shadow">Select</button>
             <button onclick="editSelectedAdhocVillage()" class="bg-blue-600 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-xs font-bold shadow">Edit</button>
             <button onclick="deleteSelectedAdhocVillage()" class="bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded text-xs font-bold shadow">Delete</button>
           </div>
@@ -155,8 +160,11 @@
 
       <!-- Master Upload Setup -->
       <div class="bg-white p-4 rounded-lg shadow space-y-3">
-        <h2 class="text-sm font-semibold text-gray-700 uppercase border-b pb-2">Master Dataset Setup</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="text-sm font-semibold text-gray-700 uppercase"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-700 text-white text-[10px] font-bold mr-2 align-middle">1</span>Master Dataset Setup</h2>
+          <button id="masterSetupToggleBtn" onclick="toggleMasterSetupCollapse()" class="text-xs text-emerald-700 font-bold hover:underline no-print">Collapse ▲</button>
+        </div>
+        <div id="masterSetupBody" class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs font-medium text-gray-600">Select Master CSV</label>
             <input type="file" id="masterCsvInput" accept=".csv" onchange="loadMasterCsv(event)" class="mt-1 text-xs w-full border rounded p-1">
@@ -174,34 +182,34 @@
       <!-- Transaction Header Form -->
       <div class="bg-white p-4 rounded-lg shadow space-y-4">
         <div class="border-b pb-2">
-          <h2 class="text-sm font-semibold text-gray-700 uppercase">Transaction Header Details</h2>
+          <h2 class="text-sm font-semibold text-gray-700 uppercase"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-700 text-white text-[10px] font-bold mr-2 align-middle">2</span>Transaction Header Details</h2>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
-          <div>
+        <div class="flex flex-wrap gap-3">
+          <div class="flex-1 min-w-[130px]">
             <label class="block text-xs font-medium text-gray-600">Vendor Name</label>
             <input type="text" id="txVendor" placeholder="e.g. Naveen" oninput="autoCapitalize(this)" class="border rounded p-2 text-sm w-full">
           </div>
-          <div>
+          <div class="flex-1 min-w-[130px]">
             <label class="block text-xs font-medium text-gray-600">Truck Arrival ID / GRN</label>
             <input type="text" id="txTruck" placeholder="e.g. TAKA001" oninput="this.value = this.value.toUpperCase();" class="border rounded p-2 text-sm w-full uppercase font-mono font-bold">
           </div>
-          <div>
+          <div class="flex-1 min-w-[110px]">
             <label class="block text-xs font-medium text-gray-600">Total Procured Qty (<span class="unitLbl">KG</span>)</label>
             <input type="number" id="txTotalQty" placeholder="10000" oninput="updateAllocationCounter()" class="border rounded p-2 text-sm w-full bg-yellow-50 font-bold">
           </div>
-          <div>
+          <div class="flex-[1.6] min-w-[260px]">
             <label class="block text-xs font-medium text-gray-600">Date & Place</label>
             <div class="flex space-x-1">
-              <input type="text" id="txPlace" placeholder="Madhugiri" oninput="autoCapitalize(this)" class="border rounded p-2 text-sm w-1/2">
-              <input type="date" id="txDate" class="border rounded p-2 text-sm w-1/2">
+              <input type="text" id="txPlace" placeholder="Madhugiri" oninput="autoCapitalize(this)" class="border rounded p-2 text-sm flex-1 min-w-0">
+              <input type="date" id="txDate" class="border rounded p-2 text-sm w-[135px] flex-shrink-0">
             </div>
           </div>
-          <div>
+          <div class="flex-1 min-w-[130px]">
             <label class="block text-xs font-medium text-gray-600">Logged By (Staff)</label>
             <input type="text" id="txLoggedBy" placeholder="Chethan H C" oninput="autoCapitalize(this)" class="border rounded p-2 text-sm w-full">
           </div>
-          <div>
+          <div class="flex-1 min-w-[160px]">
             <label class="block text-xs font-medium text-gray-600">Upload Vendor Signature</label>
             <input type="file" id="vendorSigInput" accept="image/png, image/jpeg, image/jpg" onchange="handleSignatureUpload(event)" class="mt-1 text-[10px] w-full border rounded p-1 bg-gray-50">
           </div>
@@ -248,7 +256,7 @@
 
       <!-- Proximity Search Controls -->
       <div class="bg-white p-4 rounded-lg shadow space-y-3">
-        <h2 class="text-sm font-semibold text-gray-700 uppercase">Vendor Proximity Search (Up to 100 km)</h2>
+        <h2 class="text-sm font-semibold text-gray-700 uppercase"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-700 text-white text-[10px] font-bold mr-2 align-middle">3</span>Vendor Proximity Search (Up to 100 km)</h2>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
           <div>
             <label class="block text-xs text-gray-600">Vendor Latitude</label>
@@ -275,34 +283,58 @@
       </div>
 
       <!-- Nearby Village Capacity Table -->
-      <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="p-3 bg-gray-100 border-b flex flex-wrap justify-between items-center gap-2">
-          <div class="flex items-center space-x-3">
-            <h3 class="text-sm font-bold text-gray-800">Nearby Villages & Capacity Caps</h3>
-            <span id="tableUnallocatedBadge" class="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800">
-              Unallocated: <span id="tblUnallocVal">0</span> <span class="unitLbl">KG</span>
-            </span>
+      <div class="bg-white rounded-lg shadow">
+        <!-- This whole block freezes just below the main tab bar while you
+             scroll through the village list — so with 100+ villages you
+             can reach "Add All Entered" / "Save & Sync Transaction"
+             without scrolling all the way back up. Its top offset is set
+             in JS (updateStickyOffsets) to match the real height of the
+             tab bar above it, so the two never overlap.
+             NOTE: the card wrapper above intentionally does NOT have
+             overflow-hidden — that would make IT the sticky containing
+             box instead of the page, silently breaking the freeze below
+             (only the outer tab bar would still stick). Corner-rounding
+             that overflow-hidden used to provide is applied directly to
+             this element and the table wrapper below instead. -->
+        <div id="villageTableStickyHeader" class="sticky z-10 bg-white rounded-t-lg overflow-hidden" style="top: var(--nav-height, 52px);">
+          <div class="p-3 bg-gray-100 border-b flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center space-x-3">
+              <h3 class="text-sm font-bold text-gray-800"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-700 text-white text-[10px] font-bold mr-2 align-middle">4</span>Nearby Villages & Capacity Caps</h3>
+              <span id="tableUnallocatedBadge" class="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-100 text-emerald-800">
+                Unallocated: <span id="tblUnallocVal">0</span> <span class="unitLbl">KG</span>
+              </span>
+            </div>
+
+            <div class="flex items-center space-x-2">
+              <button onclick="toggleNewVillageModal()" class="bg-[#B5651D] hover:bg-[#9C5719] text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
+                <span>➕ Add New Village</span>
+              </button>
+              <button onclick="addAllEnteredQuantities()" class="bg-[#B5651D] hover:bg-[#9C5719] text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
+                <span>⚡ Add All Entered</span>
+              </button>
+              <button onclick="saveCurrentTransaction()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
+                <span>💾 Save & Sync Transaction</span>
+              </button>
+              <span id="resultCount" class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">0 Villages Found</span>
+              <button id="searchSortToggleBtn" onclick="toggleSearchSortRow()" class="text-xs text-gray-500 hover:text-gray-800 font-bold no-print" title="Hide/show search and sort — useful to reclaim screen space on a phone">🔍 Search/Sort ▲</button>
+            </div>
           </div>
 
-          <div class="flex items-center space-x-2">
-            <button onclick="toggleNewVillageModal()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
-              <span>➕ Add New Village</span>
-            </button>
-            <button onclick="addAllEnteredQuantities()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
-              <span>⚡ Add All Entered</span>
-            </button>
-            <button onclick="saveCurrentTransaction()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-1.5 rounded font-bold shadow-sm flex items-center space-x-1">
-              <span>💾 Save & Sync Transaction</span>
-            </button>
-            <span id="resultCount" class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded">0 Villages Found</span>
+          <!-- Quick village search — jump straight to a village instead of scrolling the distance-sorted list, which matters most for a big multi-village delivery and on mobile. Collapsible via the toggle above, mainly to reclaim vertical space on small screens. -->
+          <div id="searchSortRow" class="p-2 bg-amber-50 border-b border-amber-100 flex flex-col sm:flex-row gap-2">
+            <input type="text" id="villageQuickSearch" oninput="filterVillageTableBySearch()" placeholder="🔎 Type a village name to jump to it…" class="border border-amber-300 rounded p-2 text-sm flex-1 bg-white">
+            <select id="villageSortSelect" onchange="resortVillageTable(this.value)" class="border border-amber-300 rounded p-2 text-sm bg-white sm:w-56">
+              <option value="distance" selected>Sort: Distance (nearest first)</option>
+              <option value="remaining">Sort: Remaining Capacity (most first)</option>
+            </select>
           </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto rounded-b-lg">
           <table class="w-full text-left text-xs">
             <thead class="bg-gray-50 text-gray-600 uppercase border-b">
               <tr>
-                <th class="p-2">Village Name</th>
+                <th class="p-2 sticky left-0 z-10 bg-gray-50">Village Name</th>
                 <th class="p-2">Ref No</th>
                 <th class="p-2">District / Block / GP</th>
                 <th class="p-2">Status</th>
@@ -330,13 +362,13 @@
       </div>
     </section>
 
-    <!-- TAB 2: TRACEABILITY SEARCH & AUDIT -->
+    <!-- TAB 2: TRACEABILITY REPORTS & DOWNLOAD CENTER -->
     <section id="sec-search" class="hidden space-y-6">
       
-      <!-- Main Audit Filter Bar -->
+      <!-- Main Filter Bar -->
       <div class="bg-white p-4 rounded-lg shadow space-y-4 no-print">
         <div class="flex justify-between items-center border-b pb-2">
-          <h2 class="text-sm font-semibold text-gray-700 uppercase">End-of-Season Traceability & Audit Center</h2>
+          <h2 class="text-sm font-semibold text-gray-700 uppercase">Traceability Reports & Download Center</h2>
           <button onclick="fetchCloudLedger()" class="bg-emerald-800 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-bold">Fetch All Team Traceability Sheets from Cloud</button>
         </div>
         
@@ -373,8 +405,8 @@
           <button onclick="deleteSelectedGrn()" class="bg-red-700 hover:bg-red-800 text-white text-xs px-4 py-2 rounded font-semibold flex items-center space-x-1">
             <span>🔒 Delete Selected Sheet (PIN Protected)</span>
           </button>
-          <button onclick="exportNonSurveyedAuditCsv()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-4 py-2 rounded font-semibold">
-            📄 Export Non-Surveyed Villages Audit (CSV)
+          <button onclick="exportNonSurveyedAuditCsv()" class="bg-[#B5651D] hover:bg-[#9C5719] text-white text-xs px-4 py-2 rounded font-semibold">
+            📄 Export Non-Surveyed Villages Report (CSV)
           </button>
           <button onclick="exportLoggedCsv()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-4 py-2 rounded font-semibold">Export All Logged Data (CSV)</button>
         </div>
@@ -474,13 +506,14 @@
       </div>
     </section>
 
-    <!-- TAB 3: SUMMARY & REPORTS -->
+    <!-- TAB 3: SEASON SUMMARY -->
     <section id="sec-summary" class="hidden space-y-6">
       <div class="bg-white p-4 rounded-lg shadow space-y-1 no-print">
-        <h2 class="text-sm font-semibold text-gray-700 uppercase border-b pb-2">Season Overview</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3" id="summaryTopStats">
-          <!-- filled by renderSummaryReport() -->
+        <div class="flex justify-between items-center border-b pb-2">
+          <h2 class="text-sm font-semibold text-gray-700 uppercase">Season Summary</h2>
+          <button onclick="exportSummaryCsv()" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs px-3 py-1.5 rounded font-bold">📄 Export Vendor Summary (CSV)</button>
         </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3" id="summaryTopStats"></div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -521,17 +554,42 @@
             </table>
           </div>
         </div>
+
+        <div class="bg-white rounded-lg shadow overflow-hidden md:col-span-2">
+          <div class="p-3 bg-gray-100 border-b">
+            <h3 class="text-sm font-bold text-gray-800">Top Villages by Volume Sourced</h3>
+          </div>
+          <div class="overflow-x-auto max-h-96 overflow-y-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-gray-50 text-gray-600 uppercase border-b sticky top-0">
+                <tr>
+                  <th class="p-2">Village</th>
+                  <th class="p-2">District / Block</th>
+                  <th class="p-2 text-right">Total Sourced (<span class="unitLbl">KG</span>)</th>
+                  <th class="p-2 text-right">GRNs</th>
+                </tr>
+              </thead>
+              <tbody id="summaryTopVillagesTableBody" class="divide-y divide-gray-200"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- TAB 3: CLOUD SYNC SETUP -->
+    <!-- TAB 4: CLOUD SYNC SETUP -->
     <section id="sec-sync" class="hidden space-y-4">
       <div class="bg-white p-6 rounded-lg shadow space-y-4">
         <h2 class="text-sm font-semibold text-gray-700 uppercase">Multi-Device Real-Time Synchronization Setup</h2>
         <p class="text-xs text-gray-600">Paste your deployed Google Apps Script Webhook URL below to sync offline allocations across all supervisors in real time.</p>
         <div>
           <label class="block text-xs font-medium text-gray-600">Google Apps Script Webhook URL</label>
-          <input type="url" id="webhookUrl" placeholder="https://script.google.com/macros/s/.../exec" class="border rounded p-2 text-sm w-full mt-1">
+          <div class="flex gap-2 mt-1">
+            <input type="url" id="webhookUrl" placeholder="https://script.google.com/macros/s/.../exec" class="border rounded p-2 text-sm flex-1">
+            <button onclick="copyWebhookUrlToClipboard()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs px-3 py-2 rounded font-bold whitespace-nowrap flex items-center space-x-1">
+              <span>📋 Copy</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-gray-400 mt-1">Already connected? Tap Copy and send this URL (e.g. via WhatsApp) to a colleague setting up a new device — they paste it into this same field on their own phone or laptop, once.</p>
         </div>
         <div class="flex space-x-3">
           <button onclick="saveWebhookUrl()" class="bg-emerald-700 text-white text-xs px-4 py-2 rounded font-bold">Save Webhook URL</button>
@@ -542,6 +600,13 @@
 
   </main>
 
+  <!-- Toast notifications — success confirmations no longer interrupt with
+       a blocking native alert(); they show here briefly and dismiss
+       themselves. Errors, PIN prompts, and confirmations still use
+       alert()/prompt()/confirm(), since those genuinely need to interrupt
+       and be acknowledged before continuing. -->
+  <div id="toastContainer" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center space-y-2 w-full px-4 pointer-events-none no-print"></div>
+
   <script>
     let masterVillages = [];
     let loggedTransactions = JSON.parse(localStorage.getItem('pongamia_logs') || '[]');
@@ -551,21 +616,91 @@
     // copied into every transaction/row — see handleRetroactiveSignatureUpload
     // for why.
     let vendorSignatures = JSON.parse(localStorage.getItem('pongamia_vendor_signatures') || '{}');
-    // Failed syncs (transaction saves, vendor signatures, audit log entries)
-    // land here instead of just vanishing after one failed attempt. See
-    // queueForRetry / flushSyncQueue near postToWebhook.
+    // Failed syncs land here instead of just vanishing after one failed
+    // attempt — persisted so it survives a refresh, retried automatically
+    // in the background. See queueForRetry / flushSyncQueue.
     let pendingSyncQueue = JSON.parse(localStorage.getItem('pongamia_pending_sync') || '[]');
     let currentFilteredVillages = [];
     let activeTxItems = [];
     let currentUnit = 'KG';
     let uploadedVendorSigBase64 = "";
 
+    // Bump this whenever a new build ships — makes it instantly obvious
+    // from a screenshot which version someone is actually running,
+    // instead of the back-and-forth needed earlier in this project to
+    // figure out a live site was on an old deployed build.
+    const APP_VERSION = 'v2.2 · Sep 2026';
+
     const MANAGER_DELETE_PIN = "1234";
+
+    // Lightweight toast notifications for things the person needs to know
+    // but doesn't need to actively dismiss — success confirmations, mainly.
+    // type: 'success' | 'warning' | 'error' | 'info'. Warnings/errors stay
+    // up longer by default since they carry more important information.
+    function showToast(message, type = 'success', durationMs) {
+      const colors = {
+        success: 'bg-emerald-700',
+        warning: 'bg-[#B5651D]',
+        error: 'bg-red-700',
+        info: 'bg-slate-700'
+      };
+      const icons = { success: '✅', warning: '⚠️', error: '❌', info: 'ℹ️' };
+      if (!durationMs) durationMs = (type === 'warning' || type === 'error') ? 7000 : 3500;
+
+      const container = document.getElementById('toastContainer');
+      if (!container) { console.log(message); return; }
+
+      const toast = document.createElement('div');
+      toast.className = `${colors[type] || colors.info} text-white text-xs sm:text-sm font-semibold px-4 py-3 rounded-lg shadow-lg max-w-md w-full sm:w-auto pointer-events-auto flex items-start space-x-2 opacity-0 translate-y-2 transition-all duration-300`;
+      toast.innerHTML = `<span>${icons[type] || icons.info}</span><span class="flex-1">${message}</span><button class="opacity-70 hover:opacity-100 font-bold leading-none ml-1">✕</button>`;
+      toast.querySelector('button').onclick = () => removeToast(toast);
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('opacity-0', 'translate-y-2');
+      });
+
+      const timer = setTimeout(() => removeToast(toast), durationMs);
+      toast._dismissTimer = timer;
+
+      function removeToast(el) {
+        clearTimeout(el._dismissTimer);
+        el.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => el.remove(), 300);
+      }
+    }
+
 
     let currentVendorGrns = [];
     let activeVendorGrnIndex = 0;
 
+    // Keeps the sticky village-table toolbar (#villageTableStickyHeader)
+    // positioned exactly below the main tab bar, whatever its actual
+    // rendered height turns out to be — avoids hardcoding a pixel value
+    // that could drift if the nav bar's height ever changes (different
+    // screen width, font rendering, etc).
+    function updateStickyOffsets() {
+      const navBar = document.getElementById('mainNavBar');
+      if (navBar) {
+        document.documentElement.style.setProperty('--nav-height', navBar.offsetHeight + 'px');
+      }
+    }
+    window.addEventListener('resize', updateStickyOffsets);
+
+    // Defaults to expanded — nothing changes for anyone who doesn't touch
+    // this. Mainly useful on a phone, where the frozen toolbar above the
+    // village table permanently uses some screen height; collapsing this
+    // row reclaims a bit of that without losing the search/sort controls
+    // (still one tap away).
+    function toggleSearchSortRow() {
+      const row = document.getElementById('searchSortRow');
+      const btn = document.getElementById('searchSortToggleBtn');
+      const hidden = row.classList.toggle('hidden');
+      btn.innerText = hidden ? '🔍 Search/Sort ▼' : '🔍 Search/Sort ▲';
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('appVersionTag').innerText = APP_VERSION;
       const savedWebhook = localStorage.getItem('pongamia_webhook');
       if (savedWebhook) {
         document.getElementById('webhookUrl').value = savedWebhook;
@@ -578,6 +713,8 @@
       document.getElementById('txDate').value = new Date().toISOString().substring(0, 10);
       populateAdhocModalDropdowns();
       updatePendingSyncBadge();
+      updateStickyOffsets();
+      checkForDraftTransaction();
     });
 
     function autoCapitalize(input) {
@@ -600,7 +737,7 @@
       const distDatalist = document.getElementById('nsDistrictDatalist');
       const blockDatalist = document.getElementById('nsBlockDatalist');
 
-      dropdown.innerHTML = '<option value="">-- Select Village to Edit / Delete --</option>';
+      dropdown.innerHTML = '<option value="">-- Select Village --</option>';
       distDatalist.innerHTML = '';
       blockDatalist.innerHTML = '';
 
@@ -613,6 +750,45 @@
 
       allDistricts.forEach(d => { distDatalist.innerHTML += `<option value="${d}">`; });
       allBlocks.forEach(b => { blockDatalist.innerHTML += `<option value="${b}">`; });
+    }
+
+    // Solves the "I didn't know a colleague already added this village"
+    // gap: previously the only options for a village found via this
+    // dropdown were Edit or Delete — there was no way to just bring an
+    // already-existing ad-hoc village into the allocation table to add a
+    // quantity to it. This does that: finds the village, makes sure it's
+    // in the currently-displayed table (adding it to the top if it
+    // isn't), closes the modal, and scrolls straight to its row with a
+    // brief highlight so it's obvious which one to type a quantity into.
+    function selectAdhocVillageForAllocation() {
+      const refVal = document.getElementById('nsExistingDropdown').value;
+      if (!refVal) {
+        alert("Please select a village from the dropdown first.");
+        return;
+      }
+
+      let v = masterVillages.find(m => m.ref_number === refVal) || adhocVillagesStore.find(a => a.ref_number === refVal);
+      if (!v) return;
+
+      let inFiltered = currentFilteredVillages.find(f => f.ref_number === v.ref_number);
+      if (!inFiltered) {
+        currentFilteredVillages.unshift(v);
+      }
+
+      toggleNewVillageModal();
+      renderVillageTable();
+
+      setTimeout(() => {
+        const idx = currentFilteredVillages.findIndex(f => f.ref_number === v.ref_number);
+        const row = document.getElementById(`villageRow_${idx}`);
+        if (row) {
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          row.classList.add('ring-2', 'ring-emerald-500');
+          setTimeout(() => row.classList.remove('ring-2', 'ring-emerald-500'), 2500);
+        }
+        const input = document.getElementById(`alloc_${idx}`);
+        if (input) input.focus();
+      }, 50);
     }
 
     function editSelectedAdhocVillage() {
@@ -647,10 +823,10 @@
       renderVillageTable();
       populateAdhocModalDropdowns();
 
-      alert("✅ Village updated successfully!");
+      showToast('Village updated successfully.', 'success');
     }
 
-    async function deleteSelectedAdhocVillage() {
+    function deleteSelectedAdhocVillage() {
       const refVal = document.getElementById('nsExistingDropdown').value;
       if (!refVal) {
         alert("Please select a village from the dropdown to delete.");
@@ -664,8 +840,6 @@
         return;
       }
 
-      const deletedVillage = adhocVillagesStore.find(a => a.ref_number === refVal);
-
       adhocVillagesStore = adhocVillagesStore.filter(a => a.ref_number !== refVal);
       masterVillages = masterVillages.filter(m => m.ref_number !== refVal);
       currentFilteredVillages = currentFilteredVillages.filter(f => f.ref_number !== refVal);
@@ -676,9 +850,7 @@
       renderStagedTable();
       populateAdhocModalDropdowns();
 
-      logAuditEvent('delete_village', deletedVillage ? `${deletedVillage.village_name} (${deletedVillage.district}/${deletedVillage.block}, ref ${refVal})` : refVal);
-
-      alert("✅ Non-surveyed village entry deleted successfully!");
+      showToast('Non-surveyed village entry deleted.', 'success');
     }
 
     function autoCapitalizeStr(str) {
@@ -759,9 +931,9 @@
         uploadedVendorSigBase64 = base64; // kept so this transaction's own save also carries it, for old-data compatibility
         const result = await saveVendorSignature(vendorName, base64);
         if (result.ok) {
-          alert(`✅ Signature saved for '${vendorName}' and synced. It now applies to every traceability sheet for this vendor — including this transaction — on every device.`);
+          showToast(`Signature saved for '${vendorName}' and synced — applies to every sheet for this vendor now, on every device.`, 'success');
         } else {
-          alert(`⚠️ Signature saved on THIS device for '${vendorName}', but the cloud sync failed (${result.reason}).\n\nIt's been queued and will retry automatically — other devices will pick it up once that succeeds.`);
+          showToast(`Signature saved on this device for '${vendorName}', but cloud sync failed (${result.reason}). Queued to retry automatically.`, 'warning');
         }
       }, function() {
         alert("Could not read that image file. Please try a different PNG or JPEG.");
@@ -787,7 +959,7 @@
     // The fix: a signature is a property of the VENDOR, not of each
     // transaction, so it only needs to be sent ONCE — a single small
     // upsert to a dedicated place — and every sheet for that vendor reads
-    // it live at render time (see buildSinglePageHtml / 
+    // it live at render time (see drawCertificate /
     // renderTraceabilitySheetForGrn). No looping, no duplication, and the
     // matching Code.gs (see the version shared alongside this fix) now
     // upserts by vendor name instead of blindly appending.
@@ -805,61 +977,13 @@
       compressImageFileToBase64(file, async function(sigBase64) {
         const result = await saveVendorSignature(selectedVendor, sigBase64);
         if (result.ok) {
-          alert(`✅ Signature saved for '${selectedVendor}' and confirmed synced to the cloud. It now applies to every traceability sheet for this vendor, on every device — no re-uploading needed per truck.`);
+          showToast(`Signature saved for '${selectedVendor}' and synced — applies to every sheet for this vendor now, no re-uploading per truck.`, 'success');
         } else {
-          alert(`⚠️ Signature saved on THIS device for '${selectedVendor}', but the cloud sync failed (${result.reason}).\n\nIt's been queued and will retry automatically — other devices will pick it up once that succeeds.`);
+          showToast(`Signature saved on this device for '${selectedVendor}', but cloud sync failed (${result.reason}). Queued to retry automatically.`, 'warning');
         }
       }, function() {
         alert("Could not read that image file. Please try a different PNG or JPEG.");
       });
-    }
-
-    // ---- Fuzzy village-name matching --------------------------------
-    // Purely local text similarity, no external library. Used only to
-    // flag a likely typo before a near-duplicate village gets created —
-    // it never blocks anything, the person always has the final say.
-    function normalizeVillageKey(s) {
-      return (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    }
-
-    function levenshteinDistance(a, b) {
-      a = a || ''; b = b || '';
-      const m = a.length, n = b.length;
-      if (m === 0) return n;
-      if (n === 0) return m;
-      const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
-      for (let i = 0; i <= m; i++) dp[i][0] = i;
-      for (let j = 0; j <= n; j++) dp[0][j] = j;
-      for (let i = 1; i <= m; i++) {
-        for (let j = 1; j <= n; j++) {
-          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-          dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
-        }
-      }
-      return dp[m][n];
-    }
-
-    // Looks for an existing village in the same district whose name is
-    // close-but-not-identical to the one being entered. Deliberately
-    // scoped to "same district" so it doesn't flag two genuinely
-    // different villages that just happen to share a common name root.
-    function findSimilarVillage(vName, district) {
-      const normTarget = normalizeVillageKey(vName);
-      if (!normTarget) return null;
-      let best = null;
-      let bestDist = Infinity;
-      masterVillages.forEach(v => {
-        if ((v.district || '').toLowerCase() !== (district || '').toLowerCase()) return;
-        const normCandidate = normalizeVillageKey(v.village_name);
-        if (!normCandidate || normCandidate === normTarget) return; // identical handled elsewhere
-        const d = levenshteinDistance(normTarget, normCandidate);
-        const threshold = Math.max(2, Math.floor(Math.min(normTarget.length, normCandidate.length) * 0.25));
-        if (d <= threshold && d < bestDist) {
-          bestDist = d;
-          best = v;
-        }
-      });
-      return best;
     }
 
     function submitNewVillageEntry() {
@@ -873,46 +997,39 @@
         return;
       }
 
+      if (!isNaN(enteredQtyVal) && enteredQtyVal > 0 && !requireTotalQtyEntered()) {
+        return;
+      }
+
       let existingObj = masterVillages.find(a => a.village_name.toLowerCase() === vName.toLowerCase() && a.block.toLowerCase() === block.toLowerCase());
+      const wasAlreadyAdded = !!existingObj;
       
       let targetObj;
 
       if (existingObj) {
         targetObj = existingObj;
       } else {
-        // Before creating a brand-new village, check for a likely typo of
-        // one that already exists in the same district — this is how
-        // near-duplicate villages (e.g. "Kathinagenahalli" vs
-        // "Kathinagenahali") end up splitting one place's sourcing
-        // history across two separate entries.
-        const similar = findSimilarVillage(vName, dist);
-        const useSimilar = similar && confirm(`A similar village already exists in ${dist}: '${similar.village_name}' (${similar.block}).\n\nDid you mean that one, instead of creating '${vName}' as a new, separate village?\n\nOK = use '${similar.village_name}'\nCancel = create '${vName}' as a new entry anyway`);
+        const refNo = 'adhoc_' + Math.random().toString(36).substring(2, 8);
+        targetObj = {
+          ref_number: refNo,
+          village_id: `${dist}_${block}_${vName}`,
+          village_name: vName,
+          district: dist,
+          block: block,
+          gp: 'Ad-Hoc GP',
+          status: 'Non-Surveyed (Ad-Hoc)',
+          lat: parseFloat(document.getElementById('vendorLat').value) || 0,
+          lng: parseFloat(document.getElementById('vendorLng').value) || 0,
+          est_trees: 0,
+          max_cap_kg: 99999999,
+          sourced_kg: getSourcedFromLogs(refNo),
+          remaining_kg: 99999999,
+          dist: 0
+        };
 
-        if (useSimilar) {
-          targetObj = similar;
-        } else {
-          const refNo = 'adhoc_' + Math.random().toString(36).substring(2, 8);
-          targetObj = {
-            ref_number: refNo,
-            village_id: `${dist}_${block}_${vName}`,
-            village_name: vName,
-            district: dist,
-            block: block,
-            gp: 'Ad-Hoc GP',
-            status: 'Non-Surveyed (Ad-Hoc)',
-            lat: parseFloat(document.getElementById('vendorLat').value) || 0,
-            lng: parseFloat(document.getElementById('vendorLng').value) || 0,
-            est_trees: 0,
-            max_cap_kg: 99999999,
-            sourced_kg: getSourcedFromLogs(refNo),
-            remaining_kg: 99999999,
-            dist: 0
-          };
-
-          adhocVillagesStore.push(targetObj);
-          localStorage.setItem('pongamia_adhoc_villages', JSON.stringify(adhocVillagesStore));
-          masterVillages.unshift(targetObj);
-        }
+        adhocVillagesStore.push(targetObj);
+        localStorage.setItem('pongamia_adhoc_villages', JSON.stringify(adhocVillagesStore));
+        masterVillages.unshift(targetObj);
       }
 
       let inFiltered = currentFilteredVillages.find(f => f.ref_number === targetObj.ref_number);
@@ -938,6 +1055,7 @@
         targetObj.sourced_kg += valKg;
         renderStagedTable();
         updateAllocationCounter();
+        saveDraftTransaction();
       }
 
       renderVillageTable();
@@ -949,7 +1067,16 @@
       document.getElementById('nsProcuredQty').value = '';
       document.getElementById('nsExistingDropdown').value = '';
 
-      alert(`Village '${vName}' added to allocation table as Non-Surveyed!`);
+      const hasQty = !isNaN(enteredQtyVal) && enteredQtyVal > 0;
+      if (wasAlreadyAdded) {
+        showToast(hasQty
+          ? `'${vName}' (${block}) was already added earlier — likely by a colleague. Your ${enteredQtyVal} ${currentUnit} has been added to its existing total instead of creating a duplicate.`
+          : `'${vName}' (${block}) was already added earlier — likely by a colleague. It's now in the allocation table below so you can add a quantity to it.`, 'info', 6000);
+      } else {
+        showToast(hasQty
+          ? `New Non-Surveyed village '${vName}' created with ${enteredQtyVal} ${currentUnit} allocated.`
+          : `New Non-Surveyed village '${vName}' added to the allocation table.`, 'success');
+      }
     }
 
     function changeUnit(unit) {
@@ -977,12 +1104,11 @@
     }
 
     // Pure client-side aggregation of whatever's already loaded — no extra
-    // network calls. Re-run every time the tab is opened so it reflects
-    // the latest sync.
+    // network calls, so it's instant, and it reflects whatever this
+    // device has most recently synced. Re-run every time the tab opens.
     function renderSummaryReport() {
       const mult = unitMultiplier();
 
-      // Top stats
       const totalKg = loggedTransactions.reduce((sum, t) => sum + (t.total_kg || 0), 0);
       const vendorSet = new Set(loggedTransactions.map(t => t.vendor_name).filter(Boolean));
       const truckSet = new Set(loggedTransactions.map(t => t.truck_id).filter(Boolean));
@@ -1038,6 +1164,58 @@
               <td class="p-2 text-right font-extrabold ${v.pct >= 100 ? 'text-red-700' : 'text-amber-700'}">${v.pct.toFixed(0)}%</td>
             </tr>
           `).join('');
+
+      // Top villages by volume sourced (across all transactions, regardless of master CSV match)
+      const byVillage = {};
+      loggedTransactions.forEach(t => {
+        (t.items || []).forEach(i => {
+          const key = i.ref_number || i.village_id;
+          if (!byVillage[key]) {
+            byVillage[key] = { name: i.village_name, district: i.district || '', block: i.block, kg: 0, grns: new Set() };
+          }
+          byVillage[key].kg += (i.allocated_kg || 0);
+          byVillage[key].grns.add(t.truck_id);
+        });
+      });
+      const topVillageRows = Object.values(byVillage).sort((a, b) => b.kg - a.kg).slice(0, 25);
+      const topVillagesTbody = document.getElementById('summaryTopVillagesTableBody');
+      topVillagesTbody.innerHTML = topVillageRows.length === 0
+        ? `<tr><td colspan="4" class="p-4 text-center text-gray-400">No transactions logged yet.</td></tr>`
+        : topVillageRows.map(v => `
+            <tr class="hover:bg-gray-50">
+              <td class="p-2 font-bold text-gray-800">${v.name}</td>
+              <td class="p-2 text-gray-600">${v.district ? v.district + ' / ' : ''}${v.block}</td>
+              <td class="p-2 text-right font-semibold">${(v.kg * mult).toLocaleString(undefined, {maximumFractionDigits: 2})}</td>
+              <td class="p-2 text-right text-gray-500">${v.grns.size}</td>
+            </tr>
+          `).join('');
+    }
+
+    function exportSummaryCsv() {
+      const mult = unitMultiplier();
+      const byVendor = {};
+      loggedTransactions.forEach(t => {
+        if (!t.vendor_name) return;
+        if (!byVendor[t.vendor_name]) byVendor[t.vendor_name] = { kg: 0, trucks: new Set() };
+        byVendor[t.vendor_name].kg += (t.total_kg || 0);
+        byVendor[t.vendor_name].trucks.add(t.truck_id);
+      });
+      const rows = Object.entries(byVendor).sort((a, b) => b[1].kg - a[1].kg);
+
+      if (rows.length === 0) {
+        alert("No transactions logged yet — nothing to summarize.");
+        return;
+      }
+
+      let csv = `Vendor_Name,Total_Procured_${currentUnit},Truck_Count\n`;
+      rows.forEach(([name, v]) => {
+        csv += `"${name}",${(v.kg * mult).toFixed(2)},${v.trucks.size}\n`;
+      });
+
+      const blob = document.createElement('a');
+      blob.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+      blob.download = `Vendor_Summary_${currentUnit}.csv`;
+      blob.click();
     }
 
     function syncRadiusInput(val) {
@@ -1049,6 +1227,23 @@
       let num = Math.min(Math.max(val, 1), 100);
       document.getElementById('radiusSlider').value = num;
       document.getElementById('radiusValText').innerText = num + ' km';
+    }
+
+    // Master Dataset Setup only needs attention once per season — once a
+    // CSV is loaded it auto-collapses to keep visual priority on the
+    // sections used for every single transaction. Still fully reachable
+    // via the toggle if you need to reload a CSV or change the yield
+    // factor later.
+    function toggleMasterSetupCollapse() {
+      const body = document.getElementById('masterSetupBody');
+      const btn = document.getElementById('masterSetupToggleBtn');
+      const collapsed = body.classList.toggle('hidden');
+      btn.innerText = collapsed ? 'Expand ▼' : 'Collapse ▲';
+    }
+
+    function collapseMasterSetup() {
+      document.getElementById('masterSetupBody').classList.add('hidden');
+      document.getElementById('masterSetupToggleBtn').innerText = 'Expand ▼';
     }
 
     function loadMasterCsv(event) {
@@ -1064,6 +1259,7 @@
       const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
       masterVillages = [];
       const yieldFactor = parseFloat(document.getElementById('yieldFactor').value) || 3;
+      const statsMap = buildVillageStatsMap();
 
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
@@ -1076,7 +1272,7 @@
         let estTrees = parseFloat(v['Estimated Trees']) || 0;
         let maxCapKg = estTrees * yieldFactor;
         let refNo = v['Reference Number'] || ('fm' + Math.random().toString(36).substring(2,8));
-        let sourcedKg = getSourcedFromLogs(refNo);
+        let sourcedKg = (statsMap[refNo] && statsMap[refNo].sourced_kg) || 0;
 
         masterVillages.push({
           ref_number: refNo,
@@ -1097,11 +1293,50 @@
 
       adhocVillagesStore.forEach(adhoc => {
         if (!masterVillages.find(m => m.ref_number === adhoc.ref_number)) {
-          masterVillages.push({ ...adhoc, sourced_kg: getSourcedFromLogs(adhoc.ref_number) });
+          const sourcedKg = (statsMap[adhoc.ref_number] && statsMap[adhoc.ref_number].sourced_kg) || 0;
+          masterVillages.push({ ...adhoc, sourced_kg: sourcedKg });
         }
       });
 
       document.getElementById('masterStatus').innerText = `Loaded ${masterVillages.length} master villages!`;
+      collapseMasterSetup();
+    }
+
+    // The three hot paths below (master CSV load, every cloud sync, and
+    // every village-table render) all used to call getSourcedFromLogs /
+    // getVillageUsageCount once PER VILLAGE — and each of those calls
+    // itself re-scanned the ENTIRE transaction history. That's
+    // villages × transactions multiplied together, which is fine at a
+    // couple thousand villages but turns into multi-second freezes once
+    // the master list grows into the 15,000-20,000 range (confirmed by
+    // timing it directly).
+    //
+    // This scans the transaction history ONCE, building a lookup table
+    // keyed by village ref — then each of those three call sites does a
+    // simple O(1) lookup per village instead of a fresh full re-scan.
+    // Villages × transactions becomes villages + transactions.
+    //
+    // getSourcedFromLogs()/getVillageUsageCount() themselves are left
+    // exactly as they were — they're still used for one-off lookups
+    // (e.g. a single newly-added village) where scanning the whole
+    // history once is completely fine and not worth the extra bookkeeping.
+    function buildVillageStatsMap() {
+      const stats = {};
+      loggedTransactions.forEach(t => {
+        if (!t.items || !Array.isArray(t.items)) return;
+        const seenInThisTx = new Set();
+        t.items.forEach(i => {
+          const ref = i.ref_number;
+          if (!ref) return;
+          if (!stats[ref]) stats[ref] = { sourced_kg: 0, usage_count: 0 };
+          stats[ref].sourced_kg += parseFloat(i.allocated_kg || 0);
+          if (!seenInThisTx.has(ref)) {
+            stats[ref].usage_count++;
+            seenInThisTx.add(ref);
+          }
+        });
+      });
+      return stats;
     }
 
     function getSourcedFromLogs(ref) {
@@ -1150,8 +1385,9 @@
 
     function recalculateMasterSourcedFromLogs() {
       if (!masterVillages || masterVillages.length === 0) return;
+      const statsMap = buildVillageStatsMap();
       masterVillages.forEach(v => {
-        let sourcedKg = getSourcedFromLogs(v.ref_number);
+        let sourcedKg = (statsMap[v.ref_number] && statsMap[v.ref_number].sourced_kg) || 0;
         v.sourced_kg = sourcedKg;
         if (!v.status.includes('Non-Surveyed')) {
           v.remaining_kg = v.max_cap_kg - sourcedKg;
@@ -1181,6 +1417,22 @@
       return R * c;
     }
 
+    // Ad-hoc (non-surveyed) villages are always grouped after surveyed
+    // ones, whichever primary sort is active — their distance/capacity
+    // fields don't carry the same meaning as a surveyed village's do, so
+    // sorting them together with surveyed villages by those fields isn't
+    // meaningful. Within that ad-hoc group, they're sorted alphabetically
+    // by village name, since that's what makes a newly-added village easy
+    // to find by name once there are many of them.
+    function compareWithAdhocLast(a, b, primaryCompare) {
+      const aAdhoc = a.status && a.status.includes('Non-Surveyed');
+      const bAdhoc = b.status && b.status.includes('Non-Surveyed');
+      if (aAdhoc && !bAdhoc) return 1;
+      if (!aAdhoc && bAdhoc) return -1;
+      if (aAdhoc && bAdhoc) return (a.village_name || '').localeCompare(b.village_name || '');
+      return primaryCompare(a, b);
+    }
+
     function searchNearbyVillages() {
       const vLat = parseFloat(document.getElementById('vendorLat').value);
       const vLng = parseFloat(document.getElementById('vendorLng').value);
@@ -1196,8 +1448,33 @@
       currentFilteredVillages = masterVillages.map(v => {
         let dist = haversine(vLat, vLng, v.lat, v.lng);
         return { ...v, dist: dist };
-      }).filter(v => v.dist <= radius || v.status.includes('Non-Surveyed')).sort((a,b) => a.dist - b.dist);
+      }).filter(v => v.dist <= radius || v.status.includes('Non-Surveyed'))
+        .sort((a, b) => compareWithAdhocLast(a, b, (x, y) => x.dist - y.dist));
 
+      const searchBox = document.getElementById('villageQuickSearch');
+      if (searchBox) searchBox.value = '';
+
+      const sortSelect = document.getElementById('villageSortSelect');
+      if (sortSelect) sortSelect.value = 'distance';
+
+      renderVillageTable();
+    }
+
+    // Re-sorts the already-fetched village list without re-running the
+    // radius search — the underlying set of villages doesn't change, only
+    // the order they're presented in. A new radius search always resets
+    // this back to distance (see searchNearbyVillages above); switching
+    // to "remaining capacity" is a deliberate, temporary choice for
+    // allocating a specific delivery efficiently. Either way, ad-hoc
+    // villages stay grouped after surveyed ones — see
+    // compareWithAdhocLast above.
+    function resortVillageTable(criterion) {
+      captureTableInputs();
+      if (criterion === 'remaining') {
+        currentFilteredVillages.sort((a, b) => compareWithAdhocLast(a, b, (x, y) => (y.remaining_kg || 0) - (x.remaining_kg || 0)));
+      } else {
+        currentFilteredVillages.sort((a, b) => compareWithAdhocLast(a, b, (x, y) => x.dist - y.dist));
+      }
       renderVillageTable();
     }
 
@@ -1223,6 +1500,7 @@
       }
 
       const mult = unitMultiplier();
+      const statsMap = buildVillageStatsMap();
 
       currentFilteredVillages.forEach((v, idx) => {
         let isAdhoc = v.status && v.status.includes('Non-Surveyed');
@@ -1232,15 +1510,17 @@
         let remVal = isAdhoc ? 'Unlimited' : Math.max(0, (v.remaining_kg * mult));
         let remDisp = isAdhoc ? 'Unlimited' : remVal.toFixed(2);
 
-        let usageCount = getVillageUsageCount(v.ref_number);
+        let usageCount = (statsMap[v.ref_number] && statsMap[v.ref_number].usage_count) || 0;
         let usageBadgeClass = usageCount > 3 ? "bg-red-100 text-red-800 font-bold" : (usageCount > 0 ? "bg-amber-100 text-amber-900 font-bold" : "bg-gray-100 text-gray-600");
 
         let savedVal = tableInputState[v.ref_number] || '';
 
         let tr = document.createElement('tr');
+        tr.id = `villageRow_${idx}`;
         tr.className = isAdhoc ? "bg-amber-50/50 hover:bg-amber-100/50" : "hover:bg-gray-50";
+        tr.setAttribute('data-village-name', v.village_name.toLowerCase());
         tr.innerHTML = `
-          <td class="p-2 font-bold text-gray-800">${v.village_name}</td>
+          <td class="p-2 font-bold text-gray-800 sticky left-0 z-[5] ${isAdhoc ? 'bg-amber-50' : 'bg-white'}">${v.village_name}</td>
           <td class="p-2 font-mono text-gray-500">${v.ref_number}</td>
           <td class="p-2 text-gray-600">${v.district} / ${v.block} / ${v.gp}</td>
           <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] ${isAdhoc ? 'bg-amber-200 text-amber-900 font-bold' : (v.status.includes('Audit') ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800')}">${v.status}</span></td>
@@ -1252,16 +1532,140 @@
           <td class="p-2"><span class="text-emerald-700 font-extrabold">${remDisp} ${isAdhoc ? '' : currentUnit}</span></td>
           <td class="p-2">
             <div class="flex space-x-1">
-              <input type="number" step="any" id="alloc_${idx}" value="${savedVal}" oninput="tableInputState['${v.ref_number}'] = this.value" placeholder="${currentUnit}" class="border rounded p-1 w-20 text-xs">
-              <button onclick="allocateVillage(${idx})" class="bg-emerald-700 text-white px-2 py-1 rounded text-xs font-bold hover:bg-emerald-800">Add</button>
+              <input type="number" step="any" id="alloc_${idx}" value="${savedVal}" oninput="tableInputState['${v.ref_number}'] = this.value" placeholder="${currentUnit}" class="border rounded p-2 sm:p-1 w-20 text-xs">
+              <button onclick="allocateVillage(${idx})" class="bg-emerald-700 text-white px-3 py-2 sm:px-2 sm:py-1 rounded text-xs font-bold hover:bg-emerald-800">Add</button>
             </div>
           </td>
         `;
         tbody.appendChild(tr);
       });
+
+      filterVillageTableBySearch();
     }
 
+    // Pure visual filter — hides/shows already-rendered rows by village
+    // name. Deliberately does NOT touch currentFilteredVillages itself,
+    // since allocateVillage(idx) and friends index directly into that
+    // array; filtering the data instead of just the display would shift
+    // those indices and risk allocating the wrong village.
+    function filterVillageTableBySearch() {
+      const searchBox = document.getElementById('villageQuickSearch');
+      if (!searchBox) return;
+      const q = searchBox.value.trim().toLowerCase();
+      const rows = document.querySelectorAll('#villageTableBody tr[data-village-name]');
+      let visibleCount = 0;
+      rows.forEach(row => {
+        const match = !q || row.getAttribute('data-village-name').includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visibleCount++;
+      });
+
+      const resultCountEl = document.getElementById('resultCount');
+      if (resultCountEl && rows.length > 0) {
+        resultCountEl.innerText = q
+          ? `${visibleCount} of ${rows.length} shown`
+          : `${rows.length} Villages within radius`;
+      }
+    }
+
+    // Without this, it was possible to allocate quantities to villages
+    // before the transaction's own Total Procured Qty was ever entered —
+    // the Unallocated Balance would then show a nonsensical negative
+    // number instead of catching the mistake up front.
+    function requireTotalQtyEntered() {
+      const totalEntered = parseFloat(document.getElementById('txTotalQty').value);
+      if (isNaN(totalEntered) || totalEntered <= 0) {
+        alert("Please enter the Total Procured Qty for this transaction first — that's what village allocations are measured against.");
+        return false;
+      }
+      return true;
+    }
+
+    // ---- In-progress transaction draft (crash/accidental-close protection) ----
+    // Someone entering allocations across 15-20 villages before hitting
+    // Save has real work to lose if the tab closes or crashes on a flaky
+    // field connection. This mirrors the header fields + staged
+    // allocations to localStorage as they change, and offers to restore
+    // them on the next page load. Cleared automatically once the
+    // transaction is actually saved (see resetTransactionForm).
+    function saveDraftTransaction() {
+      const vendor = document.getElementById('txVendor').value.trim();
+      const truck = document.getElementById('txTruck').value.trim();
+      if (!vendor && !truck && activeTxItems.length === 0) {
+        clearDraftTransaction();
+        return;
+      }
+      const draft = {
+        vendor: vendor,
+        truck: truck,
+        totalQty: document.getElementById('txTotalQty').value,
+        place: document.getElementById('txPlace').value,
+        date: document.getElementById('txDate').value,
+        loggedBy: document.getElementById('txLoggedBy').value,
+        items: activeTxItems,
+        savedAt: new Date().toISOString()
+      };
+      localStorage.setItem('pongamia_draft_transaction', JSON.stringify(draft));
+    }
+
+    function clearDraftTransaction() {
+      localStorage.removeItem('pongamia_draft_transaction');
+    }
+
+    // Runs once on page load. Native confirm() is deliberate here — this
+    // is a real "keep or discard your work" decision, same weight as a
+    // PIN prompt, so it should block until answered rather than show as
+    // a toast that could be missed.
+    function checkForDraftTransaction() {
+      const raw = localStorage.getItem('pongamia_draft_transaction');
+      if (!raw) return;
+      let draft;
+      try {
+        draft = JSON.parse(raw);
+      } catch (e) {
+        clearDraftTransaction();
+        return;
+      }
+      const itemCount = (draft.items || []).length;
+      if (!draft.vendor && !draft.truck && itemCount === 0) {
+        clearDraftTransaction();
+        return;
+      }
+
+      const resume = confirm(
+        `You have an unsaved transaction in progress:\n\n` +
+        `Vendor: ${draft.vendor || '(none)'}\n` +
+        `Truck ID: ${draft.truck || '(none)'}\n` +
+        `Villages staged: ${itemCount}\n\n` +
+        `Resume it? (Cancel will discard this draft.)`
+      );
+
+      if (!resume) {
+        clearDraftTransaction();
+        return;
+      }
+
+      document.getElementById('txVendor').value = draft.vendor || '';
+      document.getElementById('txTruck').value = draft.truck || '';
+      document.getElementById('txTotalQty').value = draft.totalQty || '';
+      document.getElementById('txPlace').value = draft.place || '';
+      if (draft.date) document.getElementById('txDate').value = draft.date;
+      document.getElementById('txLoggedBy').value = draft.loggedBy || '';
+      activeTxItems = draft.items || [];
+
+      renderStagedTable();
+      updateAllocationCounter();
+      showToast(`Resumed draft transaction — ${itemCount} village${itemCount === 1 ? '' : 's'} restored.`, 'info', 5000);
+    }
+
+    // Safety net in case some future change adds a mutation point that
+    // forgets to call saveDraftTransaction() directly — catches it within
+    // 15 seconds regardless. The explicit calls elsewhere still make it
+    // feel instant for the common cases.
+    setInterval(saveDraftTransaction, 15000);
+
     function allocateVillage(idx) {
+      if (!requireTotalQtyEntered()) return;
       captureTableInputs();
       const v = currentFilteredVillages[idx];
       const valInput = document.getElementById(`alloc_${idx}`);
@@ -1304,9 +1708,11 @@
       renderStagedTable();
       renderVillageTable();
       updateAllocationCounter();
+      saveDraftTransaction();
     }
 
     function addAllEnteredQuantities() {
+      if (!requireTotalQtyEntered()) return;
       captureTableInputs();
       let addedCount = 0;
       currentFilteredVillages.forEach((v, idx) => {
@@ -1344,7 +1750,8 @@
         renderStagedTable();
         renderVillageTable();
         updateAllocationCounter();
-        alert(`Successfully added allocations for ${addedCount} villages!`);
+        saveDraftTransaction();
+        showToast(`Added allocations for ${addedCount} village${addedCount > 1 ? 's' : ''}.`, 'success');
       } else {
         alert("No quantities were entered in the table fields.");
       }
@@ -1414,6 +1821,7 @@
 
       renderVillageTable();
       updateAllocationCounter();
+      saveDraftTransaction();
     }
 
     function removeStagedItem(idx) {
@@ -1436,6 +1844,7 @@
       renderStagedTable();
       renderVillageTable();
       updateAllocationCounter();
+      saveDraftTransaction();
     }
 
     function clearAllStaged() {
@@ -1493,6 +1902,7 @@
       renderStagedTable();
       renderVillageTable();
       updateAllocationCounter();
+      clearDraftTransaction();
     }
 
     async function saveCurrentTransaction() {
@@ -1505,17 +1915,6 @@
       if (!vendor || !truck || isNaN(totalEntered) || activeTxItems.length === 0) {
         alert("Please complete Vendor Name, Truck ID, Total Quantity, and add at least one village allocation.");
         return;
-      }
-
-      // Saving under a Truck ID that already has a logged transaction
-      // REPLACES it entirely (both locally and, as of the updated
-      // Code.gs, in the cloud sheet too) — it doesn't add to it. Flagging
-      // this clearly so a re-save is a deliberate choice, not a surprise.
-      const existingForTruck = loggedTransactions.find(t => t.truck_id === truck);
-      if (existingForTruck) {
-        const existingCount = (existingForTruck.items || []).length;
-        const proceed = confirm(`Truck ID '${truck}' already has a saved transaction (${existingCount} village${existingCount === 1 ? '' : 's'}, ${existingForTruck.total_kg} KG).\n\nSaving now will REPLACE that record with what's currently staged here — the old figures will not be kept.\n\nContinue?`);
-        if (!proceed) return;
       }
 
       isSyncingTransaction = true;
@@ -1546,10 +1945,10 @@
       const syncResult = await syncSingleTransactionToCloud(txObj);
 
       if (syncResult.ok) {
-        alert(`✅ Transaction '${truck}' saved & synced successfully! Form is now reset for the next entry.`);
+        showToast(`Transaction '${truck}' saved & synced. Form reset for the next entry.`, 'success');
       } else {
         queueForRetry('transaction', txObj);
-        alert(`⚠️ Transaction '${truck}' was saved on THIS device, but the cloud sync failed (${syncResult.reason}).\n\nIt's been queued and will retry automatically in the background (or as soon as you're back online) — no need to re-enter it. You can also trigger it manually with "🔄 Sync Team Traceability Sheets".`);
+        showToast(`Transaction '${truck}' saved on this device, but cloud sync failed (${syncResult.reason}). Queued to retry automatically — no need to re-enter it.`, 'warning');
       }
       
       resetTransactionForm();
@@ -1571,13 +1970,11 @@
         const payload = await res.json();
 
         // The fixed Apps Script (see the version shared alongside this
-        // fix) returns { ledger, vendor_signatures, backend_version }. If
-        // the old script is still deployed (redeploy hasn't happened
-        // yet), it returns a flat array — handled here so this doesn't
-        // break mid-rollout.
+        // fix) returns { ledger, vendor_signatures }. If the old script is
+        // still deployed (redeploy hasn't happened yet), it returns a
+        // flat array — handled here so this doesn't break mid-rollout.
         const rows = Array.isArray(payload) ? payload : payload.ledger;
         const cloudVendorSigs = Array.isArray(payload) ? {} : (payload.vendor_signatures || {});
-        updateVersionMarker(Array.isArray(payload) ? null : payload.backend_version);
         if (!Array.isArray(rows)) return;
 
         const txMap = {};
@@ -1607,7 +2004,7 @@
             village_name: r.Village_Name || r.village_name || '',
             block: r.Block || r.block || '',
             district: r.District || r.district || '',
-            status: r.Audit_Status || r.status || (refNo.startsWith('adhoc_') ? 'Non-Surveyed (Ad-Hoc)' : 'Approved'),
+            status: r.Survey_Status || r.status || (refNo.startsWith('adhoc_') ? 'Non-Surveyed (Ad-Hoc)' : 'Approved'),
             allocated_kg: qty
           });
           
@@ -1616,6 +2013,54 @@
 
         loggedTransactions = Object.values(txMap);
         localStorage.setItem('pongamia_logs', JSON.stringify(loggedTransactions));
+
+        // A non-surveyed (ad-hoc) village created on ANOTHER device only
+        // ever existed in THAT device's local adhocVillagesStore — the
+        // cloud ledger only carries its allocations (Ref_Number,
+        // Village_Name, Block etc. on each row), never a "this village
+        // exists" record on its own. Without this, a village added
+        // elsewhere shows up fine in the transaction history here, but is
+        // invisible in the village table and silently excluded from the
+        // Non-Surveyed CSV export (which checks it's a known village, not
+        // just that a transaction mentions it). This reconstructs a local
+        // definition for any ad-hoc village this device doesn't know
+        // about yet, from whatever the ledger rows already tell us.
+        const knownAdhocRefs = new Set(adhocVillagesStore.map(a => a.ref_number));
+        let backfilledCount = 0;
+        loggedTransactions.forEach(t => {
+          t.items.forEach(i => {
+            if (i.ref_number && i.ref_number.startsWith('adhoc_') && !knownAdhocRefs.has(i.ref_number)) {
+              const villageIdParts = (i.village_id || '').split('_');
+              const inferredDistrict = i.district || (villageIdParts.length > 1 ? villageIdParts[0] : '');
+              adhocVillagesStore.push({
+                ref_number: i.ref_number,
+                village_id: i.village_id || `${inferredDistrict}_${i.block}_${i.village_name}`,
+                village_name: i.village_name,
+                district: inferredDistrict,
+                block: i.block,
+                gp: 'Ad-Hoc GP',
+                status: 'Non-Surveyed (Ad-Hoc)',
+                lat: 0,
+                lng: 0,
+                est_trees: 0,
+                max_cap_kg: 99999999,
+                sourced_kg: 0,
+                remaining_kg: 99999999,
+                dist: 0
+              });
+              knownAdhocRefs.add(i.ref_number);
+              backfilledCount++;
+            }
+          });
+        });
+        if (backfilledCount > 0) {
+          localStorage.setItem('pongamia_adhoc_villages', JSON.stringify(adhocVillagesStore));
+          adhocVillagesStore.forEach(adhoc => {
+            if (!masterVillages.find(m => m.ref_number === adhoc.ref_number)) {
+              masterVillages.push({ ...adhoc, sourced_kg: getSourcedFromLogs(adhoc.ref_number) });
+            }
+          });
+        }
 
         // Merge vendor signatures: cloud is the source of truth per
         // vendor (including an explicit removal, represented as an empty
@@ -1631,78 +2076,8 @@
         renderTraceabilitySheet();
       } catch (e) {
         console.error("Cloud fetch error:", e);
-        updateVersionMarker(undefined); // undefined = couldn't reach the backend at all
       }
     }
-
-    // Shows the deployed backend's self-reported version next to the
-    // frontend's own. This exists specifically because confirming a
-    // redeploy actually took effect used to require manually fetching the
-    // raw webhook URL and reading the JSON by eye.
-    function updateVersionMarker(backendVersion) {
-      const el = document.getElementById('versionMarker');
-      if (!el) return;
-      let label;
-      if (backendVersion === undefined) {
-        label = 'unreachable';
-      } else if (backendVersion === null || !backendVersion) {
-        label = 'legacy (pre-upgrade script — redeploy needed)';
-      } else {
-        label = backendVersion;
-      }
-      el.innerHTML = `App: v1.2 &middot; Backend: ${label}`;
-    }
-
-    // ---- Pending sync retry queue ---------------------------------------
-    // A failed sync used to just show a warning and then be forgotten —
-    // someone had to remember to hit "Sync" again manually, or the entry
-    // stayed invisible to every other device indefinitely. Failed items
-    // now go in this queue, persisted to localStorage (so it survives a
-    // refresh or the tab being closed), and get retried automatically.
-    function queueForRetry(type, payload) {
-      pendingSyncQueue.push({ id: 'PSQ_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), type, payload, addedAt: new Date().toISOString() });
-      localStorage.setItem('pongamia_pending_sync', JSON.stringify(pendingSyncQueue));
-      updatePendingSyncBadge();
-    }
-
-    function updatePendingSyncBadge() {
-      const badge = document.getElementById('pendingSyncBadge');
-      if (!badge) return;
-      if (pendingSyncQueue.length === 0) {
-        badge.classList.add('hidden');
-        badge.innerText = '';
-      } else {
-        badge.classList.remove('hidden');
-        badge.innerText = `⏳ ${pendingSyncQueue.length} pending sync${pendingSyncQueue.length > 1 ? 's' : ''}`;
-      }
-    }
-
-    let isFlushingSyncQueue = false;
-    async function flushSyncQueue() {
-      if (isFlushingSyncQueue || pendingSyncQueue.length === 0) return;
-      if (!localStorage.getItem('pongamia_webhook')) return;
-      isFlushingSyncQueue = true;
-
-      const stillPending = [];
-      for (const entry of pendingSyncQueue) {
-        const result = await postToWebhook(entry.payload);
-        if (!result.ok) stillPending.push(entry);
-      }
-      const recovered = pendingSyncQueue.length - stillPending.length;
-      pendingSyncQueue = stillPending;
-      localStorage.setItem('pongamia_pending_sync', JSON.stringify(pendingSyncQueue));
-      updatePendingSyncBadge();
-
-      isFlushingSyncQueue = false;
-      if (recovered > 0) {
-        console.log(`Synced ${recovered} previously-failed item(s) from the retry queue.`);
-      }
-    }
-
-    // Retry roughly every minute while the page is open, and immediately
-    // whenever the browser regains connectivity.
-    setInterval(flushSyncQueue, 60000);
-    window.addEventListener('online', flushSyncQueue);
 
     function populateSearchDropdowns() {
       const truckSel = document.getElementById('filterTruck');
@@ -1860,10 +2235,6 @@
       // cloud sheet and would reappear on the next sync (here or on any
       // other device). Now actually removes them from the shared ledger.
       const deleteResult = await postToWebhook({ type: 'delete_transaction', truck_id: activeGrnId });
-      if (!deleteResult.ok) {
-        queueForRetry('delete_transaction', { type: 'delete_transaction', truck_id: activeGrnId });
-      }
-      logAuditEvent('delete_transaction', `Truck ID ${activeGrnId}`);
 
       recalculateMasterSourcedFromLogs();
       populateSearchDropdowns();
@@ -1880,177 +2251,197 @@
       document.getElementById('pdfTableBody').innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400">Select a Truck ID or Vendor above to render certificate.</td></tr>`;
       document.getElementById('pdfTotalQty').innerText = '0';
 
-      alert(deleteResult.ok
-        ? `✅ Traceability Sheet '${activeGrnId}' deleted successfully — removed from this device and the shared cloud sheet.`
-        : `⚠️ Traceability Sheet '${activeGrnId}' removed from this device, but the cloud deletion failed (${deleteResult.reason}). It's queued to retry — until then it may still show on other devices.`);
+      showToast(deleteResult.ok
+        ? `Traceability Sheet '${activeGrnId}' deleted — removed from this device and the shared cloud sheet.`
+        : `Traceability Sheet '${activeGrnId}' removed from this device, but the cloud deletion failed (${deleteResult.reason}). Try "Sync Team Traceability Sheets" and delete it again once you're back online.`,
+        deleteResult.ok ? 'success' : 'warning');
     }
 
-    // A4 PRINT LAYOUT ENGINE (ACCOMMODATES 22 ROWS PER PAGE)
-    function buildSinglePageHtml(first, pageItems, totalDisp, currentPage, totalPages, isFirstPageOverall = false) {
-      let rowsHtml = '';
-      pageItems.forEach(i => {
-        let dispQty = (i.allocated_kg * unitMultiplier()).toLocaleString(undefined, {maximumFractionDigits: 2});
-        rowsHtml += `
-          <tr style="border-bottom: 1px solid #111827;">
-            <td style="border-right: 1px solid #111827; padding: 8px 10px; font-family: monospace; font-size: 12px; font-weight: bold; width: 20%; box-sizing: border-box; word-break: break-word;">${i.ref_number}</td>
-            <td style="border-right: 1px solid #111827; padding: 8px 10px; font-weight: bold; font-size: 12px; width: 40%; box-sizing: border-box; word-break: break-word;">${i.village_name}</td>
-            <td style="border-right: 1px solid #111827; padding: 8px 10px; font-size: 12px; font-weight: 500; width: 22%; box-sizing: border-box; word-break: break-word;">${i.block}</td>
-            <td style="padding: 8px 10px; text-align: right; font-weight: bold; font-size: 12px; width: 18%; box-sizing: border-box; white-space: nowrap;">${dispQty}</td>
-          </tr>
-        `;
-      });
+    // ---- PDF generation via jsPDF + AutoTable -----------------------
+    // The previous approach rendered an HTML certificate and rasterized
+    // it into an image (html2canvas), then embedded that image in a PDF
+    // (html2pdf/jsPDF). That's why the "PDF" text wasn't selectable,
+    // looked pixelated when zoomed, and — most noticeably — why spacing
+    // between words in some cells collapsed (e.g. "Kurugodu
+    // Thammanahalli" rendering as "KurugoduThammanahalli"): html2canvas
+    // doesn't always reproduce the browser's own text layout exactly,
+    // especially with wrapping table cells. None of that is a styling
+    // bug to tune — it's inherent to rasterizing a screenshot into a PDF.
+    //
+    // This now draws real PDF text and vector table lines directly via
+    // jsPDF + the AutoTable plugin, the same way "regular" PDFs (invoices,
+    // reports) are built. Text is selectable, crisp at any zoom level,
+    // and file size is far smaller. AutoTable also handles pagination
+    // and repeating the column header row automatically — no more manual
+    // row-height measurement.
 
-      const breakStyle = isFirstPageOverall ? '' : 'page-break-before: always; break-before: page;';
+    const PDF_MARGIN_MM = 12;
 
-      const resolvedSig = (vendorSignatures && vendorSignatures[first.vendor_name]) || first.vendor_sig_base64 || '';
-      const sigImageTag = resolvedSig
-        ? `<img src="${resolvedSig}" style="height: 36px; object-fit: contain; margin: 0 auto 2px auto;" alt="Vendor Signature">` 
-        : `<div style="height: 36px;"></div>`;
-
-      return `
-        <div style="width: 720px; padding: 20px; box-sizing: border-box; background-color: #ffffff; color: #000000; ${breakStyle} margin: 0 auto;">
-          <div>
-            <div style="text-align: center; font-weight: bold; font-size: 17px; letter-spacing: 0.05em; border-bottom: 2px solid #111827; padding-bottom: 6px; margin-bottom: 12px; text-transform: uppercase;">
-              Traceability Sheet
-            </div>
-            
-            <div style="border: 1px solid #111827; margin-bottom: 12px; font-size: 12px;">
-              <div style="display: flex; border-bottom: 1px solid #111827;">
-                <div style="width: 33.33%; padding: 6px 10px; font-weight: bold; border-right: 1px solid #111827;">Vendor Name</div>
-                <div style="width: 66.66%; padding: 6px 10px; font-weight: 600;">${first.vendor_name || '-'}</div>
-              </div>
-              <div style="display: flex;">
-                <div style="width: 33.33%; padding: 6px 10px; font-weight: bold; border-right: 1px solid #111827;">Truck Arrival ID / GRN</div>
-                <div style="width: 66.66%; padding: 6px 10px; font-family: monospace; font-weight: bold;">${first.truck_id || '-'}</div>
-              </div>
-            </div>
-
-            <table style="width: 100%; table-layout: fixed; border-collapse: collapse; border: 1px solid #111827; font-size: 12px; margin-bottom: 12px;">
-              <colgroup>
-                <col style="width: 20%;">
-                <col style="width: 40%;">
-                <col style="width: 22%;">
-                <col style="width: 18%;">
-              </colgroup>
-              <thead>
-                <tr style="background-color: #f3f4f6; border-bottom: 1.5px solid #111827;">
-                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left; font-size: 12px; width: 20%;">Ref Number</th>
-                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left; font-size: 12px; width: 40%;">Village Name</th>
-                  <th style="border-right: 1px solid #111827; padding: 8px; text-align: left; font-size: 12px; width: 22%;">Block</th>
-                  <th style="padding: 8px; text-align: right; font-size: 12px; width: 18%;">Qty (in ${currentUnit})</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${rowsHtml}
-              </tbody>
-              <tfoot>
-                <tr style="border-top: 2px solid #111827; font-weight: bold; background-color: #ffffff;">
-                  <td colspan="3" style="padding: 8px; text-align: right; border-right: 1px solid #111827; text-transform: uppercase; font-size: 12px;">Total Qty (in ${currentUnit})</td>
-                  <td style="padding: 8px; text-align: right; font-size: 12px; white-space: nowrap;">${totalDisp} ${currentUnit}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div>
-            <p style="font-size: 10px; font-style: italic; color: #374151; margin-top: 8px; margin-bottom: 14px;">
-              I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.
-            </p>
-
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; font-size: 12px; padding-top: 8px; border-top: 1px solid #111827; margin-top: 8px;">
-              <div>
-                <p style="font-size: 12px;"><strong>Place, Date:</strong> ${first.place || ''}, ${first.date || ''}</p>
-              </div>
-              <div style="text-align: center;">
-                ${sigImageTag}
-                <div style="width: 180px; border-top: 1px solid #111827; padding-top: 3px; font-weight: bold; font-size: 12px;">Signature of Vendor</div>
-                <div style="font-size: 10px; color: #4b5563; margin-top: 2px;">Logged By: ${first.logged_by || 'Chethan H C'} (Page ${currentPage} of ${totalPages})</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    }
-
-    // ---- Dynamic PDF pagination -----------------------------------------
-    // pageSize used to be a hardcoded guess (22), which is why some reports
-    // left a near-empty final page and others got cut awkwardly — a fixed
-    // number can't match how tall the content actually renders. This
-    // instead renders the header/footer and every row into a hidden,
-    // off-screen copy of the same markup, measures their real pixel
-    // heights, and packs each printed page until it's actually full —
-    // matching the physical A4 page html2pdf produces.
-    const PDF_PAGE_WIDTH_IN = 8.27;   // A4
-    const PDF_PAGE_HEIGHT_IN = 11.69; // A4
-    const PDF_MARGIN_IN = 0.2;        // matches opt.margin in the export functions below
-    const PDF_CONTENT_WIDTH_PX = 720; // matches the width used in buildSinglePageHtml
-    const PDF_SAFETY_MARGIN_PX = 24;  // buffer against measurement rounding
-
-    function getPdfPageCapacityPx() {
-      const contentWidthIn = PDF_PAGE_WIDTH_IN - (PDF_MARGIN_IN * 2);
-      const pxPerInch = PDF_CONTENT_WIDTH_PX / contentWidthIn;
-      const contentHeightIn = PDF_PAGE_HEIGHT_IN - (PDF_MARGIN_IN * 2);
-      return contentHeightIn * pxPerInch;
-    }
-
-    function withHiddenProbe(html, callback) {
-      const probe = document.createElement('div');
-      probe.style.position = 'absolute';
-      probe.style.left = '-9999px';
-      probe.style.top = '0';
-      probe.style.visibility = 'hidden';
-      probe.innerHTML = html;
-      document.body.appendChild(probe);
-      let result;
-      try {
-        result = callback(probe);
-      } finally {
-        document.body.removeChild(probe);
+    function ensurePdfLibsLoaded() {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert("PDF library failed to load (no internet access to the CDN, or it's blocked). Please check your connection and try again.");
+        return false;
       }
-      return result;
+      return true;
     }
 
-    // Splits `items` into pages sized so each page's rendered height
-    // (header + rows + footer) actually fits one physical A4 page.
-    function paginateItemsForPdf(tx, items) {
-      if (items.length === 0) return [[]];
+    // Draws the "TRACEABILITY SHEET" title and the Vendor/Truck ID box.
+    // Returns the Y position (mm) to continue drawing from.
+    function drawCertificateHeader(doc, tx, y) {
+      const pageWidth = doc.internal.pageSize.getWidth();
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.text('TRACEABILITY SHEET', pageWidth / 2, y, { align: 'center' });
+      doc.setLineWidth(0.4);
+      doc.line(PDF_MARGIN_MM, y + 2, pageWidth - PDF_MARGIN_MM, y + 2);
 
-      // Overhead = header block + table header row + footer/signature
-      // block, measured with an empty table body.
-      const overheadHtml = buildSinglePageHtml(tx, [], '0', 1, 1, true);
-      const overheadPx = withHiddenProbe(overheadHtml, (probe) => probe.firstElementChild.offsetHeight);
-
-      // Row heights, measured with every row actually rendered (so text
-      // wrapping in long village/block names is accounted for).
-      const allRowsHtml = buildSinglePageHtml(tx, items, '0', 1, 1, true);
-      const rowHeights = withHiddenProbe(allRowsHtml, (probe) => {
-        const rows = probe.querySelectorAll('tbody tr');
-        return Array.from(rows).map(r => r.offsetHeight || 34);
+      doc.autoTable({
+        startY: y + 4,
+        margin: { left: PDF_MARGIN_MM, right: PDF_MARGIN_MM },
+        body: [
+          ['Vendor Name', tx.vendor_name || '-'],
+          ['Truck Arrival ID / GRN', tx.truck_id || '-']
+        ],
+        theme: 'grid',
+        styles: { fontSize: 9.5, cellPadding: 1.5, lineColor: [17, 24, 39], lineWidth: 0.2 },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 55 } }
       });
+      return doc.lastAutoTable.finalY + 2.5;
+    }
 
-      const capacityPx = getPdfPageCapacityPx();
-      const availableForRows = Math.max(capacityPx - overheadPx - PDF_SAFETY_MARGIN_PX, 100);
+    // Draws the Ref/Village/Block/Qty table. AutoTable paginates this
+    // automatically (repeating the header row) if it runs past one page.
+    function drawItemsTable(doc, items, unit, mult, startY) {
+      const body = items.map(i => [
+        i.ref_number || '',
+        i.village_name || '',
+        i.block || '',
+        (i.allocated_kg * mult).toLocaleString(undefined, { maximumFractionDigits: 2 })
+      ]);
+      const totalKg = items.reduce((s, i) => s + (i.allocated_kg || 0), 0);
 
-      const pages = [];
-      let currentPage = [];
-      let currentHeight = 0;
-
-      items.forEach((item, idx) => {
-        const h = rowHeights[idx] || 34;
-        if (currentPage.length > 0 && (currentHeight + h) > availableForRows) {
-          pages.push(currentPage);
-          currentPage = [];
-          currentHeight = 0;
+      doc.autoTable({
+        startY: startY,
+        margin: { left: PDF_MARGIN_MM, right: PDF_MARGIN_MM, top: PDF_MARGIN_MM },
+        head: [['Ref Number', 'Village Name', 'Block', `Qty (in ${unit})`]],
+        body: body,
+        foot: [['', '', `TOTAL QTY (in ${unit})`, (totalKg * mult).toLocaleString(undefined, { maximumFractionDigits: 2 })]],
+        theme: 'grid',
+        styles: { fontSize: 9.5, cellPadding: 1.5, lineColor: [17, 24, 39], lineWidth: 0.2, overflow: 'linebreak' },
+        headStyles: { fillColor: [243, 244, 246], textColor: [17, 24, 39], fontStyle: 'bold', lineWidth: 0.3 },
+        footStyles: { fillColor: [255, 255, 255], textColor: [17, 24, 39], fontStyle: 'bold', lineWidth: 0.3 },
+        columnStyles: {
+          0: { font: 'courier', cellWidth: 32 },
+          3: { halign: 'right', cellWidth: 32 }
         }
-        currentPage.push(item);
-        currentHeight += h;
       });
-      if (currentPage.length > 0) pages.push(currentPage);
+      return doc.lastAutoTable.finalY;
+    }
 
-      return pages;
+    // Draws the declaration line, signature image (if the vendor has one
+    // on file), and place/date — once, after the table ends. Adds a new
+    // page first if there isn't enough room left, so the footer never
+    // gets awkwardly clipped at the bottom edge.
+    function drawCertificateFooter(doc, tx, resolvedSig, afterY) {
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      // Measured against the actual rendered footer below, with headroom
+      // — this used to be a generous guess (40mm) that pushed the footer
+      // to its own near-empty page far earlier than it actually needed to.
+      const footerHeight = 28;
+      let y = afterY + 5;
+
+      if (y + footerHeight > pageHeight - PDF_MARGIN_MM) {
+        doc.addPage();
+        y = PDF_MARGIN_MM + 5;
+      }
+
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(8);
+      doc.text('I herewith declare that to the best of my knowledge, the data presented in this form is true and correct.', PDF_MARGIN_MM, y);
+      y += 4.5;
+      doc.setLineWidth(0.2);
+      doc.line(PDF_MARGIN_MM, y, pageWidth - PDF_MARGIN_MM, y);
+      // Signature block starts a clean 6mm below the declaration line —
+      // still enough clearance that the image never touches the line.
+      y += 6;
+
+      const sigBoxWidth = 42;
+      const sigX = pageWidth - PDF_MARGIN_MM - sigBoxWidth;
+      if (resolvedSig) {
+        try {
+          doc.addImage(resolvedSig, 'JPEG', sigX + 4, y - 1.5, sigBoxWidth - 8, 7);
+        } catch (e) {
+          console.error('Could not draw signature image in PDF:', e);
+        }
+      }
+
+      const sigLineY = y + 7;
+      doc.setLineWidth(0.2);
+      doc.line(sigX, sigLineY, sigX + sigBoxWidth, sigLineY);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`Place, Date: ${tx.place || ''}, ${tx.date || ''}`, PDF_MARGIN_MM, sigLineY);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Signature of Vendor', sigX + sigBoxWidth / 2, sigLineY + 3.5, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(75, 85, 99);
+      doc.text(`Logged By: ${tx.logged_by || ''}`, sigX + sigBoxWidth / 2, sigLineY + 6.5, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+    }
+
+    // Draws one full certificate (header + table + footer) for a
+    // transaction's already-merged item list. Starts a new PDF page
+    // first unless this is the very first certificate in the document.
+    function drawCertificate(doc, tx, items, unit, mult, isFirstInDoc) {
+      if (!isFirstInDoc) doc.addPage();
+      const resolvedSig = (vendorSignatures && vendorSignatures[tx.vendor_name]) || tx.vendor_sig_base64 || '';
+      let y = drawCertificateHeader(doc, tx, PDF_MARGIN_MM + 5);
+      y = drawItemsTable(doc, items, unit, mult, y);
+      drawCertificateFooter(doc, tx, resolvedSig, y);
+    }
+
+    // Merges duplicate ref_number rows within one transaction (same as
+    // the old itemMap logic) and returns a flat, deduplicated item list.
+    function mergeItemsByRef(transactions) {
+      const itemMap = {};
+      transactions.forEach(t => {
+        (t.items || []).forEach(i => {
+          const key = i.ref_number || i.village_id;
+          if (!itemMap[key]) itemMap[key] = { ...i, allocated_kg: 0 };
+          itemMap[key].allocated_kg += i.allocated_kg;
+        });
+      });
+      return Object.values(itemMap);
+    }
+
+    // Stamps "Page X of Y" on every page, bottom-right. Must run AFTER
+    // all content is drawn (so the final page count is known) and before
+    // doc.save(). For a single-truck export this naturally gives "1 of 2,
+    // 2 of 2" when that one report's table spills onto a second page;
+    // for a consolidated report it numbers the whole document, matching
+    // what the page count already shown in any PDF viewer's own toolbar.
+    function addPageNumbers(doc) {
+      const totalPages = doc.internal.getNumberOfPages();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(107, 114, 128);
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth - PDF_MARGIN_MM, pageHeight - 8, { align: 'right' });
+        doc.setTextColor(0, 0, 0);
+      }
     }
 
     async function exportToPdf() {
+      if (!ensurePdfLibsLoaded()) return;
+
       let activeGrnId = document.getElementById('filterTruck').value;
       if (!activeGrnId && currentVendorGrns.length > 0) {
         activeGrnId = currentVendorGrns[activeVendorGrnIndex];
@@ -2062,61 +2453,23 @@
       }
 
       let filtered = loggedTransactions.filter(t => t.truck_id === activeGrnId);
-
       if (filtered.length === 0) return;
 
-      let first = filtered[0];
+      const first = filtered[0];
       const grnNumber = first.truck_id || 'GRN_Report';
       const mult = unitMultiplier();
+      const allItems = mergeItemsByRef(filtered);
 
-      const itemMap = {};
-      let totalQtyKg = 0;
-      filtered.forEach(t => {
-        if (t.items && Array.isArray(t.items)) {
-          t.items.forEach(i => {
-            const key = i.ref_number || i.village_id;
-            if (!itemMap[key]) {
-              itemMap[key] = { ...i, allocated_kg: 0 };
-            }
-            itemMap[key].allocated_kg += i.allocated_kg;
-          });
-        }
-      });
-
-      const allItems = Object.values(itemMap);
-      allItems.forEach(i => totalQtyKg += i.allocated_kg);
-      const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
-
-      const pages = paginateItemsForPdf(first, allItems);
-      const totalPages = pages.length;
-
-      const pdfContainer = document.getElementById('pdfContainer');
-
-      let multiPageHtml = '';
-      pages.forEach((pageItems, p) => {
-        multiPageHtml += buildSinglePageHtml(first, pageItems, totalDisp, p + 1, totalPages, p === 0);
-      });
-
-      pdfContainer.innerHTML = multiPageHtml;
-
-      window.scrollTo(0, 0);
-      const opt = {
-        margin:       [0.2, 0.2, 0.2, 0.2],
-        filename:     `${grnNumber}_Traceability_Sheet_${currentUnit}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
-      };
-
-      try {
-        await html2pdf().set(opt).from(pdfContainer).save();
-      } finally {
-        renderTraceabilitySheet();
-      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      drawCertificate(doc, first, allItems, currentUnit, mult, true);
+      addPageNumbers(doc);
+      doc.save(`${grnNumber}_Traceability_Sheet_${currentUnit}.pdf`);
     }
 
     async function downloadConsolidatedPdf() {
+      if (!ensurePdfLibsLoaded()) return;
+
       const fromDate = document.getElementById('pdfFromDate').value;
       const toDate = document.getElementById('pdfToDate').value;
 
@@ -2138,68 +2491,29 @@
 
       filtered.sort((a, b) => (a.date + a.truck_id).localeCompare(b.date + b.truck_id));
 
-      const pdfContainer = document.getElementById('pdfContainer');
       const mult = unitMultiplier();
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-      let multiPageHtml = '';
-      let isVeryFirstPage = true;
-
-      filtered.forEach((tx) => {
-        const itemMap = {};
-        let totalQtyKg = 0;
-
-        if (tx.items && Array.isArray(tx.items)) {
-          tx.items.forEach(i => {
-            const key = i.ref_number || i.village_id;
-            if (!itemMap[key]) {
-              itemMap[key] = { ...i, allocated_kg: 0 };
-            }
-            itemMap[key].allocated_kg += i.allocated_kg;
-          });
-        }
-
-        const allItems = Object.values(itemMap);
-        allItems.forEach(i => totalQtyKg += i.allocated_kg);
-        const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
-
-        const pages = paginateItemsForPdf(tx, allItems);
-        const totalPages = pages.length;
-
-        pages.forEach((pageItems, p) => {
-          multiPageHtml += buildSinglePageHtml(tx, pageItems, totalDisp, p + 1, totalPages, isVeryFirstPage);
-          isVeryFirstPage = false;
-        });
+      filtered.forEach((tx, idx) => {
+        const items = mergeItemsByRef([tx]);
+        drawCertificate(doc, tx, items, currentUnit, mult, idx === 0);
       });
 
-      pdfContainer.innerHTML = multiPageHtml;
-
-      window.scrollTo(0, 0);
-      const opt = {
-        margin:       [0.2, 0.2, 0.2, 0.2],
-        filename:     `Consolidated_Traceability_Report_${fromDate}_to_${toDate}_${currentUnit}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
-      };
-
-      try {
-        await html2pdf().set(opt).from(pdfContainer).save();
-      } finally {
-        renderTraceabilitySheet();
-      }
+      addPageNumbers(doc);
+      doc.save(`Consolidated_Traceability_Report_${fromDate}_to_${toDate}_${currentUnit}.pdf`);
     }
 
     async function downloadVendorConsolidatedPdf() {
-      const selectedVendor = document.getElementById('filterConsolidatedVendor').value;
+      if (!ensurePdfLibsLoaded()) return;
 
+      const selectedVendor = document.getElementById('filterConsolidatedVendor').value;
       if (!selectedVendor) {
         alert("Please select a vendor first.");
         return;
       }
 
       let filtered = loggedTransactions.filter(t => t.vendor_name === selectedVendor);
-
       if (filtered.length === 0) {
         alert(`No logged transactions found for vendor: ${selectedVendor}.`);
         return;
@@ -2207,61 +2521,23 @@
 
       filtered.sort((a, b) => (a.date + a.truck_id).localeCompare(b.date + b.truck_id));
 
-      const pdfContainer = document.getElementById('pdfContainer');
       const mult = unitMultiplier();
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
-      let multiPageHtml = '';
-      let isVeryFirstPage = true;
-
-      filtered.forEach((tx) => {
-        const itemMap = {};
-        let totalQtyKg = 0;
-
-        if (tx.items && Array.isArray(tx.items)) {
-          tx.items.forEach(i => {
-            const key = i.ref_number || i.village_id;
-            if (!itemMap[key]) {
-              itemMap[key] = { ...i, allocated_kg: 0 };
-            }
-            itemMap[key].allocated_kg += i.allocated_kg;
-          });
-        }
-
-        const allItems = Object.values(itemMap);
-        allItems.forEach(i => totalQtyKg += i.allocated_kg);
-        const totalDisp = (totalQtyKg * mult).toLocaleString(undefined, {maximumFractionDigits: 2});
-
-        const pages = paginateItemsForPdf(tx, allItems);
-        const totalPages = pages.length;
-
-        pages.forEach((pageItems, p) => {
-          multiPageHtml += buildSinglePageHtml(tx, pageItems, totalDisp, p + 1, totalPages, isVeryFirstPage);
-          isVeryFirstPage = false;
-        });
+      filtered.forEach((tx, idx) => {
+        const items = mergeItemsByRef([tx]);
+        drawCertificate(doc, tx, items, currentUnit, mult, idx === 0);
       });
 
-      pdfContainer.innerHTML = multiPageHtml;
-
-      window.scrollTo(0, 0);
-      const opt = {
-        margin:       [0.2, 0.2, 0.2, 0.2],
-        filename:     `Consolidated_Vendor_Report_${selectedVendor.replace(/\s+/g, '_')}_${currentUnit}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
-      };
-
-      try {
-        await html2pdf().set(opt).from(pdfContainer).save();
-      } finally {
-        renderTraceabilitySheet();
-      }
+      addPageNumbers(doc);
+      doc.save(`Consolidated_Vendor_Report_${selectedVendor.replace(/\s+/g, '_')}_${currentUnit}.pdf`);
     }
+
 
     function exportNonSurveyedAuditCsv() {
       const mult = unitMultiplier();
-      let csv = `GRN_Truck_ID,Date,Vendor_Name,Place,Logged_By,Ref_Number,Village_Name,Block,District,Audit_Status,Allocated_Qty_${currentUnit}\n`;
+      let csv = `GRN_Truck_ID,Date,Vendor_Name,Place,Logged_By,Ref_Number,Village_Name,Block,District,Survey_Status,Allocated_Qty_${currentUnit}\n`;
       let nonSurveyedFound = 0;
 
       loggedTransactions.forEach(t => {
@@ -2286,7 +2562,7 @@
 
       const blob = document.createElement('a');
       blob.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-      blob.download = `Non_Surveyed_Villages_Audit_Report_${currentUnit}.csv`;
+      blob.download = `Non_Surveyed_Villages_Report_${currentUnit}.csv`;
       blob.click();
     }
 
@@ -2318,7 +2594,40 @@
       const url = document.getElementById('webhookUrl').value.trim();
       localStorage.setItem('pongamia_webhook', url);
       fetchCloudLedger();
-      alert("Cloud Sync Webhook saved!");
+      showToast('Cloud Sync Webhook saved.', 'success');
+    }
+
+    // Lets someone who's already connected grab their exact webhook URL
+    // to hand off to a new colleague (via WhatsApp, email, etc.) — this
+    // is deliberately NOT an auto-discovery mechanism: there's no way for
+    // a brand-new device to look this up on its own without already
+    // knowing which Sheet/webhook to ask, short of hardcoding one URL
+    // into the app (which would defeat the point of one app working for
+    // every region's own separate Sheet). This just removes the typo risk
+    // of re-typing a long URL by hand.
+    async function copyWebhookUrlToClipboard() {
+      const urlField = document.getElementById('webhookUrl');
+      const url = urlField.value.trim();
+      if (!url) {
+        alert("There's no webhook URL saved on this device yet — nothing to copy. Once Tab 4 is set up and syncing here, you can use this button to share that URL with a colleague.");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('Webhook URL copied — paste it (e.g. into WhatsApp) to share with a colleague.', 'success');
+      } catch (e) {
+        // Fallback for contexts where the Clipboard API isn't available
+        // (e.g. non-HTTPS, or an older mobile browser).
+        urlField.focus();
+        urlField.select();
+        urlField.setSelectionRange(0, 99999);
+        try {
+          document.execCommand('copy');
+          showToast('Webhook URL copied to your clipboard.', 'success');
+        } catch (e2) {
+          alert("Couldn't copy automatically — the URL is selected above, so you can copy it manually (Ctrl+C / Cmd+C).");
+        }
+      }
     }
 
     // Both sync functions below deliberately avoid `mode: 'no-cors'`.
@@ -2338,7 +2647,7 @@
     // readable, so we can actually confirm success or surface the error.
     async function postToWebhook(payload) {
       const url = localStorage.getItem('pongamia_webhook');
-      if (!url) return { ok: false, reason: 'No cloud sync webhook configured (see Tab 3).' };
+      if (!url) return { ok: false, reason: 'No cloud sync webhook configured (see Tab 4).' };
       try {
         const res = await fetch(url, {
           method: 'POST',
@@ -2361,22 +2670,52 @@
       return postToWebhook({ type: 'vendor_signature', vendor_name: vendorName, vendor_sig_base64: base64 });
     }
 
-    // Not real authentication — anyone with the PIN can still type any
-    // name — but it's a genuine improvement over no record at all of who
-    // deleted what, without changing how the app is deployed or requiring
-    // anyone to sign in. Asked once per browser session, then reused, so
-    // it isn't a fresh prompt on every single action.
-    let auditPerformedByName = null;
-    async function logAuditEvent(action, details) {
-      if (!auditPerformedByName) {
-        auditPerformedByName = prompt("For the audit log — your name:") || 'Unknown';
-      }
-      const payload = { type: 'audit_log', action, details, performed_by: auditPerformedByName };
-      const result = await postToWebhook(payload);
-      if (!result.ok) {
-        queueForRetry('audit_log', payload);
+    // ---- Pending sync retry queue ---------------------------------------
+    // A failed sync used to just show a warning and then be forgotten —
+    // someone had to remember to hit "Sync" again manually, or the entry
+    // stayed invisible to every other device indefinitely. Failed items
+    // now go in this queue, persisted to localStorage (so it survives a
+    // refresh or the tab being closed), and get retried automatically.
+    function queueForRetry(type, payload) {
+      pendingSyncQueue.push({ id: 'PSQ_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), type, payload, addedAt: new Date().toISOString() });
+      localStorage.setItem('pongamia_pending_sync', JSON.stringify(pendingSyncQueue));
+      updatePendingSyncBadge();
+    }
+
+    function updatePendingSyncBadge() {
+      const badge = document.getElementById('pendingSyncBadge');
+      if (!badge) return;
+      if (pendingSyncQueue.length === 0) {
+        badge.classList.add('hidden');
+        badge.innerText = '';
+      } else {
+        badge.classList.remove('hidden');
+        badge.innerText = `⏳ ${pendingSyncQueue.length} pending sync${pendingSyncQueue.length > 1 ? 's' : ''}`;
       }
     }
+
+    let isFlushingSyncQueue = false;
+    async function flushSyncQueue() {
+      if (isFlushingSyncQueue || pendingSyncQueue.length === 0) return;
+      if (!localStorage.getItem('pongamia_webhook')) return;
+      isFlushingSyncQueue = true;
+
+      const stillPending = [];
+      for (const entry of pendingSyncQueue) {
+        const result = await postToWebhook(entry.payload);
+        if (!result.ok) stillPending.push(entry);
+      }
+      pendingSyncQueue = stillPending;
+      localStorage.setItem('pongamia_pending_sync', JSON.stringify(pendingSyncQueue));
+      updatePendingSyncBadge();
+
+      isFlushingSyncQueue = false;
+    }
+
+    // Retry roughly every minute while the page is open, and immediately
+    // whenever the browser regains connectivity.
+    setInterval(flushSyncQueue, 60000);
+    window.addEventListener('online', flushSyncQueue);
 
     function clearAllLogs() {
       const enteredPin = prompt("🔒 JUNIOR MANAGER AUTHORIZATION REQUIRED:\n\nEnter Manager Security PIN to clear local cache:");
@@ -2389,10 +2728,11 @@
       localStorage.removeItem('pongamia_logs');
       localStorage.removeItem('pongamia_adhoc_villages');
       localStorage.removeItem('pongamia_vendor_signatures');
+      localStorage.removeItem('pongamia_pending_sync');
       loggedTransactions = [];
       adhocVillagesStore = [];
-      alert("Local cache cleared successfully.");
-      location.reload();
+      showToast('Local cache cleared successfully.', 'success');
+      setTimeout(() => location.reload(), 1200);
     }
   </script>
 </body>
