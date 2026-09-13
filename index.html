@@ -371,31 +371,33 @@
           <h2 class="text-sm font-semibold text-gray-700 uppercase">Traceability Reports & Download Center</h2>
         </div>
         
-        <!-- Decoupled Independent Filter Controls -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
+        <!-- Decoupled Independent Filter Controls + Upload button. The
+             upload button lives here, not in the chip bar below — a
+             vendor with many GRNs wraps that chip bar across several
+             lines, and having the button share that flex container meant
+             it kept getting pushed further down the page as chips grew.
+             Its position here is fixed regardless of chip count. -->
+        <div class="flex flex-col md:flex-row gap-4 md:items-end">
+          <div class="flex-1">
             <label class="block text-xs text-gray-600 font-medium mb-1">Filter by Single Truck Arrival ID / GRN</label>
             <select id="filterTruck" onchange="onGrnFilterChange(this.value)" class="border rounded p-2 text-sm w-full bg-white"><option value="">-- Select Truck ID --</option></select>
           </div>
-          <div>
+          <div class="flex-1">
             <label class="block text-xs text-gray-600 font-medium mb-1">Filter by Single Vendor Name</label>
             <select id="filterVendor" onchange="onVendorFilterChange(this.value)" class="border rounded p-2 text-sm w-full bg-white"><option value="">-- Select Vendor --</option></select>
           </div>
-        </div>
-
-        <!-- Vendor GRN Navigation Sub-Tabs / Chips Bar -->
-        <div id="vendorGrnToggleBar" class="hidden bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 flex items-center justify-between flex-wrap gap-2">
-          <div class="flex items-center space-x-2 flex-wrap">
-            <span class="text-xs font-bold text-emerald-900 uppercase">Vendor Traceability Sheets:</span>
-            <div id="grnChipContainer" class="flex space-x-2 flex-wrap"></div>
-          </div>
-          <!-- RETROACTIVE VENDOR SIGNATURE UPLOAD BUTTON -->
-          <div class="flex items-center space-x-2">
-            <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded font-bold shadow flex items-center space-x-1">
+          <div>
+            <label class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded font-bold shadow flex items-center justify-center space-x-1 whitespace-nowrap">
               <span>✏️ Upload / Update Vendor Signature</span>
               <input type="file" accept="image/png, image/jpeg, image/jpg" onchange="handleRetroactiveSignatureUpload(event)" class="hidden">
             </label>
           </div>
+        </div>
+
+        <!-- Vendor GRN Navigation Sub-Tabs / Chips Bar -->
+        <div id="vendorGrnToggleBar" class="hidden bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 flex items-center flex-wrap gap-2">
+          <span class="text-xs font-bold text-emerald-900 uppercase">Vendor Traceability Sheets:</span>
+          <div id="grnChipContainer" class="flex space-x-2 flex-wrap"></div>
         </div>
 
         <!-- Toolbar Buttons -->
