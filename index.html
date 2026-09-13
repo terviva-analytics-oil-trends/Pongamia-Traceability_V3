@@ -451,12 +451,12 @@
         <!-- Clean Signature Block -->
         <div class="flex justify-between items-end text-xs pt-3 border-t border-gray-300">
           <div>
-            <p><strong>Place, Date:</strong> <span id="pdfPlaceDate">-</span></p>
+            <p><strong>Place & Date:</strong> <span id="pdfPlaceDate">-</span></p>
+            <p class="text-[10px] text-gray-500 mt-0.5">Logged By: <span id="pdfLoggedBy">-</span></p>
           </div>
           <div class="text-center">
             <div id="pdfSigImgPreview" class="h-10 flex items-center justify-center"></div>
             <div class="w-48 border-t border-gray-800 pt-1 font-bold">Signature of Vendor</div>
-            <div class="text-[10px] text-gray-500 mt-0.5">Logged By: <span id="pdfLoggedBy">-</span></div>
           </div>
         </div>
       </div>
@@ -836,6 +836,19 @@
     function autoCapitalizeStr(str) {
       if (!str) return '';
       return str.replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // Display-only reformat from the stored YYYY-MM-DD (what the date
+    // input always gives) to DD/MM/YYYY for the certificate. Nothing else
+    // in the app reads dates in this format, so this is purely cosmetic
+    // at the point of display — sorting/filtering elsewhere still works
+    // against the original stored value.
+    function formatDateDDMMYYYY(isoDate) {
+      if (!isoDate) return '';
+      const parts = isoDate.substring(0, 10).split('-');
+      if (parts.length !== 3) return isoDate;
+      const [yyyy, mm, dd] = parts;
+      return `${dd}/${mm}/${yyyy}`;
     }
 
     // BASE64 COMPRESSION FOR RELIABLE SIGNATURE SYNC
@@ -2154,7 +2167,7 @@
       let first = filtered[0];
       document.getElementById('pdfVendorName').innerText = first.vendor_name;
       document.getElementById('pdfTruckId').innerText = first.truck_id;
-      document.getElementById('pdfPlaceDate').innerText = `${first.place}, ${first.date}`;
+      document.getElementById('pdfPlaceDate').innerText = `${first.place}, ${formatDateDDMMYYYY(first.date)}`;
       document.getElementById('pdfLoggedBy').innerText = first.logged_by;
 
       const sigPreviewDiv = document.getElementById('pdfSigImgPreview');
@@ -2390,16 +2403,15 @@
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.text(`Place, Date: ${tx.place || ''}, ${tx.date || ''}`, PDF_MARGIN_MM, sigLineY);
+      doc.text(`Place & Date: ${tx.place || ''}, ${formatDateDDMMYYYY(tx.date)}`, PDF_MARGIN_MM, sigLineY);
+      doc.setFontSize(7.5);
+      doc.setTextColor(75, 85, 99);
+      doc.text(`Logged By: ${tx.logged_by || ''}`, PDF_MARGIN_MM, sigLineY + 4);
+      doc.setTextColor(0, 0, 0);
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.text('Signature of Vendor', sigX + sigBoxWidth / 2, sigLineY + 3.5, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
-      doc.setTextColor(75, 85, 99);
-      doc.text(`Logged By: ${tx.logged_by || ''}`, sigX + sigBoxWidth / 2, sigLineY + 6.5, { align: 'center' });
-      doc.setTextColor(0, 0, 0);
     }
 
     // Draws one full certificate (header + table + footer) for a
