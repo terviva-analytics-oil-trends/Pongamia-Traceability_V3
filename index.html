@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#064e3b">
   <title>Pongamia Field Procurement & Traceability Engine</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%B1%3C/text%3E%3C/svg%3E">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -27,7 +28,7 @@
       <img src="https://images.squarespace-cdn.com/content/v1/6807ef89f1fae3790530419d/f4adb065-418e-434f-b8d7-1e6f5cffa967/Terviva_2022_Logo_White_CMYK.png" alt="Terviva" class="h-7 w-auto opacity-90" onerror="this.style.display='none'">
       <div>
         <h1 class="text-lg font-bold tracking-tight">Pongamia Field Procurement & Traceability Engine</h1>
-        <p class="text-[11px] text-emerald-200">Developed by Chethan H C, JM Proc. Karnataka <span class="text-emerald-400">· <span id="appVersionTag"></span></span></p>
+        <p class="text-[11px] text-emerald-200">Developed by Chethan H C, JM Proc. Karnataka</p>
       </div>
     </div>
     <div class="flex items-center space-x-2">
@@ -50,7 +51,6 @@
       <button onclick="fetchCloudLedger()" class="bg-emerald-700 hover:bg-emerald-600 text-xs px-2.5 py-1.5 rounded text-white font-bold flex items-center space-x-1">
         <span>🔄 Sync Team Traceability Sheets</span>
       </button>
-      <button onclick="clearAllLogs()" class="bg-red-700 hover:bg-red-800 text-xs px-2 py-1.5 rounded text-white font-medium">Clear Cache</button>
     </div>
   </header>
 
@@ -367,9 +367,8 @@
       
       <!-- Main Filter Bar -->
       <div class="bg-white p-4 rounded-lg shadow space-y-4 no-print">
-        <div class="flex justify-between items-center border-b pb-2">
+        <div class="border-b pb-2">
           <h2 class="text-sm font-semibold text-gray-700 uppercase">Traceability Reports & Download Center</h2>
-          <button onclick="fetchCloudLedger()" class="bg-emerald-800 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded font-bold">Fetch All Team Traceability Sheets from Cloud</button>
         </div>
         
         <!-- Decoupled Independent Filter Controls -->
@@ -625,12 +624,6 @@
     let currentUnit = 'KG';
     let uploadedVendorSigBase64 = "";
 
-    // Bump this whenever a new build ships — makes it instantly obvious
-    // from a screenshot which version someone is actually running,
-    // instead of the back-and-forth needed earlier in this project to
-    // figure out a live site was on an old deployed build.
-    const APP_VERSION = 'v2.2 · Sep 2026';
-
     const MANAGER_DELETE_PIN = "1234";
 
     // Lightweight toast notifications for things the person needs to know
@@ -688,7 +681,6 @@
     window.addEventListener('resize', updateStickyOffsets);
 
     document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('appVersionTag').innerText = APP_VERSION;
       const savedWebhook = localStorage.getItem('pongamia_webhook');
       if (savedWebhook) {
         document.getElementById('webhookUrl').value = savedWebhook;
@@ -1522,7 +1514,7 @@
         tr.className = isAdhoc ? "bg-amber-50/50 hover:bg-amber-100/50" : "hover:bg-gray-50";
         tr.setAttribute('data-village-name', v.village_name.toLowerCase());
         tr.innerHTML = `
-          <td class="p-2 font-bold text-gray-800">${v.village_name}</td>
+          <td class="p-2 font-bold text-gray-800 sticky left-0 z-[5] ${isAdhoc ? 'bg-amber-50' : 'bg-white'}">${v.village_name}</td>
           <td class="p-2 font-mono text-gray-500">${v.ref_number}</td>
           <td class="p-2 text-gray-600">${v.district} / ${v.block} / ${v.gp}</td>
           <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] ${isAdhoc ? 'bg-amber-200 text-amber-900 font-bold' : (v.status.includes('Audit') ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800')}">${v.status}</span></td>
@@ -2372,7 +2364,23 @@
       const sigX = pageWidth - PDF_MARGIN_MM - sigBoxWidth;
       if (resolvedSig) {
         try {
-          doc.addImage(resolvedSig, 'JPEG', sigX + 4, y - 1.5, sigBoxWidth - 8, 7);
+          // Preserve the signature's real proportions instead of forcing
+          // it into a fixed box — that was stretching every signature to
+          // whatever shape the box happened to be. Bottom edge stays
+          // anchored 1.5mm above the underline either way.
+          const imgProps = doc.getImageProperties(resolvedSig);
+          const maxW = sigBoxWidth - 8;
+          const maxH = 9;
+          const ratio = imgProps.width / imgProps.height;
+          let drawW = maxW;
+          let drawH = drawW / ratio;
+          if (drawH > maxH) {
+            drawH = maxH;
+            drawW = drawH * ratio;
+          }
+          const bottomY = y + 5.5;
+          const drawX = sigX + 4 + (maxW - drawW) / 2;
+          doc.addImage(resolvedSig, 'JPEG', drawX, bottomY - drawH, drawW, drawH);
         } catch (e) {
           console.error('Could not draw signature image in PDF:', e);
         }
@@ -2718,24 +2726,6 @@
     // whenever the browser regains connectivity.
     setInterval(flushSyncQueue, 60000);
     window.addEventListener('online', flushSyncQueue);
-
-    function clearAllLogs() {
-      const enteredPin = prompt("🔒 JUNIOR MANAGER AUTHORIZATION REQUIRED:\n\nEnter Manager Security PIN to clear local cache:");
-      if (enteredPin === null) return;
-      if (enteredPin !== MANAGER_DELETE_PIN) {
-        alert("❌ ACCESS DENIED: Invalid Junior Manager Security PIN.");
-        return;
-      }
-
-      localStorage.removeItem('pongamia_logs');
-      localStorage.removeItem('pongamia_adhoc_villages');
-      localStorage.removeItem('pongamia_vendor_signatures');
-      localStorage.removeItem('pongamia_pending_sync');
-      loggedTransactions = [];
-      adhocVillagesStore = [];
-      showToast('Local cache cleared successfully.', 'success');
-      setTimeout(() => location.reload(), 1200);
-    }
   </script>
 </body>
 </html>
