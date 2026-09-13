@@ -2269,7 +2269,7 @@
     // and repeating the column header row automatically — no more manual
     // row-height measurement.
 
-    const PDF_MARGIN_MM = 12;
+    const PDF_MARGIN_MM = 10;
 
     function ensurePdfLibsLoaded() {
       if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -2287,20 +2287,20 @@
       doc.setFontSize(15);
       doc.text('TRACEABILITY SHEET', pageWidth / 2, y, { align: 'center' });
       doc.setLineWidth(0.4);
-      doc.line(PDF_MARGIN_MM, y + 2, pageWidth - PDF_MARGIN_MM, y + 2);
+      doc.line(PDF_MARGIN_MM, y + 1.5, pageWidth - PDF_MARGIN_MM, y + 1.5);
 
       doc.autoTable({
-        startY: y + 4,
+        startY: y + 3.5,
         margin: { left: PDF_MARGIN_MM, right: PDF_MARGIN_MM },
         body: [
           ['Vendor Name', tx.vendor_name || '-'],
           ['Truck Arrival ID / GRN', tx.truck_id || '-']
         ],
         theme: 'grid',
-        styles: { fontSize: 9.5, cellPadding: 1.5, lineColor: [17, 24, 39], lineWidth: 0.2 },
+        styles: { fontSize: 9.5, cellPadding: 1.2, lineColor: [17, 24, 39], lineWidth: 0.2 },
         columnStyles: { 0: { fontStyle: 'bold', cellWidth: 55 } }
       });
-      return doc.lastAutoTable.finalY + 2.5;
+      return doc.lastAutoTable.finalY + 2;
     }
 
     // Draws the Ref/Village/Block/Qty table. AutoTable paginates this
@@ -2321,7 +2321,7 @@
         body: body,
         foot: [['', '', `TOTAL QTY (in ${unit})`, (totalKg * mult).toLocaleString(undefined, { maximumFractionDigits: 2 })]],
         theme: 'grid',
-        styles: { fontSize: 9.5, cellPadding: 1.5, lineColor: [17, 24, 39], lineWidth: 0.2, overflow: 'linebreak' },
+        styles: { fontSize: 9.5, cellPadding: 2, lineColor: [17, 24, 39], lineWidth: 0.2, overflow: 'linebreak' },
         headStyles: { fillColor: [243, 244, 246], textColor: [17, 24, 39], fontStyle: 'bold', lineWidth: 0.3 },
         footStyles: { fillColor: [255, 255, 255], textColor: [17, 24, 39], fontStyle: 'bold', lineWidth: 0.3 },
         columnStyles: {
@@ -2339,10 +2339,8 @@
     function drawCertificateFooter(doc, tx, resolvedSig, afterY) {
       const pageHeight = doc.internal.pageSize.getHeight();
       const pageWidth = doc.internal.pageSize.getWidth();
-      // Measured against the actual rendered footer below, with headroom
-      // — this used to be a generous guess (40mm) that pushed the footer
-      // to its own near-empty page far earlier than it actually needed to.
-      const footerHeight = 28;
+      // Measured against the actual rendered footer below, with headroom.
+      const footerHeight = 35;
       let y = afterY + 5;
 
       if (y + footerHeight > pageHeight - PDF_MARGIN_MM) {
@@ -2356,21 +2354,21 @@
       y += 4.5;
       doc.setLineWidth(0.2);
       doc.line(PDF_MARGIN_MM, y, pageWidth - PDF_MARGIN_MM, y);
-      // Signature block starts a clean 6mm below the declaration line —
-      // still enough clearance that the image never touches the line.
-      y += 6;
+      // Signature block starts 9mm below the declaration line (was 6mm) —
+      // a real signature needs actual room, not a sliver.
+      y += 9;
 
-      const sigBoxWidth = 42;
+      const sigBoxWidth = 48;
       const sigX = pageWidth - PDF_MARGIN_MM - sigBoxWidth;
       if (resolvedSig) {
         try {
           // Preserve the signature's real proportions instead of forcing
           // it into a fixed box — that was stretching every signature to
           // whatever shape the box happened to be. Bottom edge stays
-          // anchored 1.5mm above the underline either way.
+          // anchored 2mm above the underline either way.
           const imgProps = doc.getImageProperties(resolvedSig);
           const maxW = sigBoxWidth - 8;
-          const maxH = 9;
+          const maxH = 13;
           const ratio = imgProps.width / imgProps.height;
           let drawW = maxW;
           let drawH = drawW / ratio;
@@ -2378,7 +2376,7 @@
             drawH = maxH;
             drawW = drawH * ratio;
           }
-          const bottomY = y + 5.5;
+          const bottomY = y + 9;
           const drawX = sigX + 4 + (maxW - drawW) / 2;
           doc.addImage(resolvedSig, 'JPEG', drawX, bottomY - drawH, drawW, drawH);
         } catch (e) {
@@ -2386,7 +2384,7 @@
         }
       }
 
-      const sigLineY = y + 7;
+      const sigLineY = y + 11;
       doc.setLineWidth(0.2);
       doc.line(sigX, sigLineY, sigX + sigBoxWidth, sigLineY);
 
