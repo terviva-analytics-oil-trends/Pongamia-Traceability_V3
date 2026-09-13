@@ -321,7 +321,7 @@
 
           <!-- Quick village search — jump straight to a village instead of scrolling the distance-sorted list, which matters most for a big multi-village delivery and on mobile. -->
           <div class="p-2 bg-amber-50 border-b border-amber-100 flex flex-col sm:flex-row gap-2">
-            <input type="text" id="villageQuickSearch" oninput="filterVillageTableBySearch()" placeholder="🔎 Type a village name to jump to it…" class="border border-amber-300 rounded p-2 text-sm flex-1 bg-white">
+            <input type="text" id="villageQuickSearch" oninput="filterVillageTableBySearch()" placeholder="🔎 Type a village name, ref number, or district…" class="border border-amber-300 rounded p-2 text-sm flex-1 bg-white">
             <select id="villageSortSelect" onchange="resortVillageTable(this.value)" class="border border-amber-300 rounded p-2 text-sm bg-white sm:w-56">
               <option value="distance" selected>Sort: Distance (nearest first)</option>
               <option value="remaining">Sort: Remaining Capacity (most first)</option>
@@ -1523,11 +1523,14 @@
         let usageBadgeClass = usageCount > 3 ? "bg-red-100 text-red-800 font-bold" : (usageCount > 0 ? "bg-amber-100 text-amber-900 font-bold" : "bg-gray-100 text-gray-600");
 
         let savedVal = tableInputState[v.ref_number] || '';
+        let isValidQty = !isNaN(parseFloat(savedVal)) && parseFloat(savedVal) > 0;
 
         let tr = document.createElement('tr');
         tr.id = `villageRow_${idx}`;
         tr.className = isAdhoc ? "bg-amber-50/50 hover:bg-amber-100/50" : "hover:bg-gray-50";
         tr.setAttribute('data-village-name', v.village_name.toLowerCase());
+        tr.setAttribute('data-ref-number', (v.ref_number || '').toLowerCase());
+        tr.setAttribute('data-district-block', `${v.district || ''} ${v.block || ''}`.toLowerCase());
         tr.innerHTML = `
           <td class="p-2 font-bold text-gray-800 sticky left-0 z-[5] ${isAdhoc ? 'bg-amber-50' : 'bg-white'}">${v.village_name}</td>
           <td class="p-2 font-mono text-gray-500">${v.ref_number}</td>
@@ -1541,8 +1544,8 @@
           <td class="p-2"><span class="text-emerald-700 font-extrabold">${remDisp} ${isAdhoc ? '' : currentUnit}</span></td>
           <td class="p-2">
             <div class="flex space-x-1">
-              <input type="number" step="any" id="alloc_${idx}" value="${savedVal}" oninput="tableInputState['${v.ref_number}'] = this.value" placeholder="${currentUnit}" class="border rounded p-2 sm:p-1 w-20 text-xs">
-              <button onclick="allocateVillage(${idx})" class="bg-emerald-700 text-white px-3 py-2 sm:px-2 sm:py-1 rounded text-xs font-bold hover:bg-emerald-800">Add</button>
+              <input type="number" step="any" id="alloc_${idx}" value="${savedVal}" oninput="tableInputState['${v.ref_number}'] = this.value; toggleAddButtonState(${idx})" placeholder="${currentUnit}" class="border rounded p-2 sm:p-1 w-20 text-xs">
+              <button onclick="allocateVillage(${idx})" id="addBtn_${idx}" ${isValidQty ? '' : 'disabled'} class="${isValidQty ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-gray-300 text-gray-500 cursor-not-allowed'} px-3 py-2 sm:px-2 sm:py-1 rounded text-xs font-bold">Add</button>
             </div>
           </td>
         `;
@@ -1553,10 +1556,11 @@
     }
 
     // Pure visual filter — hides/shows already-rendered rows by village
-    // name. Deliberately does NOT touch currentFilteredVillages itself,
-    // since allocateVillage(idx) and friends index directly into that
-    // array; filtering the data instead of just the display would shift
-    // those indices and risk allocating the wrong village.
+    // name, ref number, or district/block. Deliberately does NOT touch
+    // currentFilteredVillages itself, since allocateVillage(idx) and
+    // friends index directly into that array; filtering the data instead
+    // of just the display would shift those indices and risk allocating
+    // the wrong village.
     function filterVillageTableBySearch() {
       const searchBox = document.getElementById('villageQuickSearch');
       if (!searchBox) return;
@@ -1564,7 +1568,10 @@
       const rows = document.querySelectorAll('#villageTableBody tr[data-village-name]');
       let visibleCount = 0;
       rows.forEach(row => {
-        const match = !q || row.getAttribute('data-village-name').includes(q);
+        const match = !q ||
+          row.getAttribute('data-village-name').includes(q) ||
+          (row.getAttribute('data-ref-number') || '').includes(q) ||
+          (row.getAttribute('data-district-block') || '').includes(q);
         row.style.display = match ? '' : 'none';
         if (match) visibleCount++;
       });
@@ -1672,6 +1679,21 @@
     // 15 seconds regardless. The explicit calls elsewhere still make it
     // feel instant for the common cases.
     setInterval(saveDraftTransaction, 15000);
+
+    // Prevents rather than just catches an invalid allocation attempt —
+    // the Add button stays disabled/grayed until a valid positive
+    // quantity is actually typed in, updating live as you type.
+    function toggleAddButtonState(idx) {
+      const input = document.getElementById(`alloc_${idx}`);
+      const btn = document.getElementById(`addBtn_${idx}`);
+      if (!input || !btn) return;
+      const val = parseFloat(input.value);
+      const valid = !isNaN(val) && val > 0;
+      btn.disabled = !valid;
+      btn.className = valid
+        ? 'bg-emerald-700 text-white hover:bg-emerald-800 px-3 py-2 sm:px-2 sm:py-1 rounded text-xs font-bold'
+        : 'bg-gray-300 text-gray-500 cursor-not-allowed px-3 py-2 sm:px-2 sm:py-1 rounded text-xs font-bold';
+    }
 
     function allocateVillage(idx) {
       if (!requireTotalQtyEntered()) return;
@@ -1926,6 +1948,25 @@
         return;
       }
 
+      // A duplicate GRN used to silently overwrite the previous
+      // transaction entirely — a typo or a reused Truck ID could destroy
+      // real prior data with zero warning, in an app whose whole purpose
+      // is being an accurate audit trail. Now it has to be confirmed.
+      let existingIdx = loggedTransactions.findIndex(t => t.truck_id === truck);
+      if (existingIdx >= 0) {
+        const existing = loggedTransactions[existingIdx];
+        const existingVillageCount = (existing.items || []).length;
+        const confirmOverwrite = confirm(
+          `Truck ID / GRN '${truck}' already has a saved transaction:\n\n` +
+          `Vendor: ${existing.vendor_name}\n` +
+          `Villages: ${existingVillageCount}\n` +
+          `Total: ${(existing.total_kg || 0).toLocaleString()} KG\n\n` +
+          `Saving now will REPLACE that entire transaction with what you're entering now (Vendor: ${vendor}).\n\n` +
+          `Continue and overwrite it?`
+        );
+        if (!confirmOverwrite) return;
+      }
+
       isSyncingTransaction = true;
 
       const totalProcuredKg = currentUnit === 'MT' ? totalEntered * 1000 : totalEntered;
@@ -1942,7 +1983,6 @@
         items: [...activeTxItems]
       };
 
-      let existingIdx = loggedTransactions.findIndex(t => t.truck_id === truck);
       if (existingIdx >= 0) {
         loggedTransactions[existingIdx] = txObj;
       } else {
