@@ -258,15 +258,19 @@
       <div class="bg-white p-4 rounded-lg shadow space-y-3">
         <h2 class="text-sm font-semibold text-gray-700 uppercase"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-700 text-white text-[10px] font-bold mr-2 align-middle">3</span>Vendor Proximity Search (Up to 100 km)</h2>
 
-        <!-- Paste a Google Maps link or Plus Code instead of typing
-             coordinates by hand. Handles: a long Maps URL with @lat,lng in
-             it, a full Plus Code, and the standard shortened Plus Code
-             Google Maps gives you on long-press ("8QMF+HX Bengaluru").
-             A shortened maps.app.goo.gl link needs a round-trip to the
-             Apps Script backend to resolve, since the coordinates aren't
-             in that link's text at all — only Google's server knows. -->
+        <!-- Paste a Google Maps link or full Plus Code instead of typing
+             coordinates by hand. Handles: a long Maps URL with @lat,lng
+             already in it, a full Plus Code (self-contained, decoded
+             locally), and a shortened maps.app.goo.gl link (resolved via
+             Apps Script, since the coordinates aren't in that link's own
+             text — only Google's server knows). Deliberately does NOT
+             attempt a shortened/dropped-prefix Plus Code like "X3VQ+M73
+             Hassan" — that requires a reference point close to the real
+             location to decode safely, and there's no reliable source
+             for one here (confirmed concretely: a stale reference 139km
+             away produced a 155km-wrong result). -->
         <div class="bg-blue-50 border border-blue-200 rounded-lg p-2.5 flex flex-col sm:flex-row gap-2">
-          <input type="text" id="locationPasteBox" placeholder="📍 Paste a Google Maps link or Plus Code here…" class="border border-blue-300 rounded p-2 text-sm flex-1 bg-white">
+          <input type="text" id="locationPasteBox" placeholder="📍 Paste a Google Maps link or full Plus Code here…" class="border border-blue-300 rounded p-2 text-sm flex-1 bg-white">
           <button onclick="resolvePastedLocation()" id="locationPasteBtn" class="bg-blue-700 hover:bg-blue-800 text-white text-xs px-4 py-2 rounded font-bold shadow whitespace-nowrap">Fill Coordinates</button>
         </div>
 
@@ -1415,14 +1419,13 @@
 
     // ---- Plus Code (Open Location Code) decoder ---------------------
     // Implemented from Google's published algorithm and verified against
-    // their own documented test vectors (Zurich, Oxford) before use here
-    // — including the grid-refinement stage, which is easy to get subtly
-    // wrong (an off-by-one there was caught and fixed during testing).
-    // Scoped deliberately to what's actually verified correct: full codes,
-    // and the standard 4-character-shortened code Google Maps actually
-    // produces when you long-press and copy ("8QMF+HX Bengaluru"). More
-    // aggressively shortened codes are declined rather than risk a
-    // silently wrong location.
+    // their own documented test vectors (Zurich, Oxford) before use here.
+    // Scoped to full, self-contained codes only — a shortened code (with
+    // a city name attached, like "X3VQ+M73 Hassan") is deliberately NOT
+    // decoded, since that requires a reference point close to the real
+    // location and there's no reliable source for one here. Confirmed
+    // concretely: a stale reference 139km away produced a 155km-wrong
+    // result on a real short code.
     const OLC = (function () {
       const ALPHABET = '23456789CFGHJMPQRVWX';
       const SEP = '+';
@@ -1435,42 +1438,6 @@
       const GRID_ROWS = 5;
       const GRID_SIZE = 0.000125;
       const PAIR_RES = [20.0, 1.0, 0.05, 0.0025, 0.000125];
-
-      function clipLat(lat) { return Math.min(90, Math.max(-90, lat)); }
-      function normLng(lng) { while (lng < -180) lng += 360; while (lng >= 180) lng -= 360; return lng; }
-
-      function encode(latitude, longitude, codeLength) {
-        codeLength = codeLength || 10;
-        latitude = clipLat(latitude);
-        longitude = normLng(longitude);
-        let latRem = latitude + LAT_MAX, lngRem = longitude + LNG_MAX;
-        let code = '', digitCount = 0;
-        for (let i = 0; i < 5; i++) {
-          const res = PAIR_RES[i];
-          const latDigit = Math.floor(latRem / res);
-          const lngDigit = Math.floor(lngRem / res);
-          latRem -= latDigit * res;
-          lngRem -= lngDigit * res;
-          code += ALPHABET[latDigit] + ALPHABET[lngDigit];
-          digitCount += 2;
-          if (digitCount === SEP_POS) code += SEP;
-        }
-        if (codeLength > PAIR_LEN) {
-          for (let i = 0; i < codeLength - PAIR_LEN; i++) {
-            const latPv = GRID_SIZE / Math.pow(GRID_ROWS, i + 1);
-            const lngPv = GRID_SIZE / Math.pow(GRID_COLS, i + 1);
-            const row = Math.floor(latRem / latPv);
-            const col = Math.floor(lngRem / lngPv);
-            latRem -= row * latPv;
-            lngRem -= col * lngPv;
-            code += ALPHABET[row * GRID_COLS + col];
-          }
-        }
-        if (code.replace(SEP, '').length < SEP_POS) {
-          code = code + PAD.repeat(SEP_POS - code.replace(SEP, '').length) + SEP;
-        }
-        return code;
-      }
 
       function decode(codeIn) {
         const code = codeIn.replace(SEP, '').replace(new RegExp(PAD + '+'), '').toUpperCase();
@@ -1499,7 +1466,7 @@
         };
       }
 
-      return { encode, decode };
+      return { decode };
     })();
 
     // Strips a trailing place name Maps appends ("8QMF+HX Bengaluru,
@@ -1518,15 +1485,8 @@
         const d = OLC.decode(code);
         return { lat: d.latitudeCenter, lng: d.longitudeCenter };
       }
-      // Short (dropped-prefix) codes are deliberately NOT auto-recovered.
-      // Recovering one requires a reference point genuinely close to the
-      // real location — and the only candidate available here (whatever
-      // is currently sitting in Vendor Lat/Lng) could be a stale value
-      // from a completely different area. Tested concretely: with a
-      // reference 139km from the true location, recovery was 155km
-      // wrong. The decoder itself is accurate to ~30m with a proper
-      // reference — the risk is entirely in guessing that reference, so
-      // this doesn't guess.
+      // Shortened codes are deliberately not auto-recovered — see the
+      // comment on OLC above for why.
       return { error: 'short_unsupported' };
     }
 
@@ -1550,11 +1510,11 @@
       showToast(message, 'success');
     }
 
-    function resolvePastedLocation() {
+    async function resolvePastedLocation() {
       const input = document.getElementById('locationPasteBox');
       const text = input.value.trim();
       if (!text) {
-        showToast('Paste a Google Maps link or Plus Code first.', 'warning');
+        showToast('Paste a Google Maps link or full Plus Code first.', 'warning');
         return;
       }
 
@@ -1567,14 +1527,20 @@
           return;
         }
         if (/maps\.app\.goo\.gl|goo\.gl\/maps/i.test(text)) {
-          // Shortened links don't carry coordinates in their own text —
-          // only Google's server knows where they redirect to, so
-          // reading them requires a round trip through Apps Script. That
-          // path turned out to be more backend fragility than this
-          // convenience feature is worth, so it's intentionally not
-          // attempted here. Long-form links and Plus Codes still work
-          // entirely in the browser, no backend involved.
-          showToast("Shortened links (maps.app.goo.gl) aren't supported. In Google Maps, use \"Share\" and look for a longer link option, or share the Plus Code instead.", 'error', 8000);
+          const btn = document.getElementById('locationPasteBtn');
+          btn.disabled = true;
+          const originalLabel = btn.innerText;
+          btn.innerText = 'Resolving…';
+          const result = await postToWebhook({ type: 'resolve_maps_link', url: text });
+          btn.disabled = false;
+          btn.innerText = originalLabel;
+          if (result.ok && result.lat != null && result.lng != null) {
+            applyPastedCoords({ lat: result.lat, lng: result.lng }, 'Coordinates resolved from the shared link.');
+          } else if (result.ok) {
+            showToast("Got a response, but no coordinates in it — this usually means the Code.gs update hasn't been redeployed yet.", 'error', 9000);
+          } else {
+            showToast(`Could not resolve that link (${result.reason || 'unknown error'}).`, 'error', 7000);
+          }
           return;
         }
         showToast("Recognized this as a Maps link but couldn't find coordinates in it.", 'error', 6000);
@@ -1587,7 +1553,7 @@
         return;
       }
       if (result && result.error === 'short_unsupported') {
-        showToast("Shortened Plus Codes (with a city name attached, like \"X3VQ+M73 Hassan\") can't be safely decoded without knowing roughly where you are — and this app has no reliable way to know that. Please paste the Maps link instead, or find the full Plus Code (no city name needed) if Maps offers it.", 'error', 9000);
+        showToast("Shortened Plus Codes (with a city name attached, like \"X3VQ+M73 Hassan\") can't be safely decoded without a nearby reference point. Please paste the Maps link instead, or find the full Plus Code (no city name needed) if Maps offers it.", 'error', 9000);
         return;
       }
       showToast("Didn't recognize that as a Maps link or Plus Code.", 'error', 6000);
