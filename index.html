@@ -1550,7 +1550,7 @@
       showToast(message, 'success');
     }
 
-    async function resolvePastedLocation() {
+    function resolvePastedLocation() {
       const input = document.getElementById('locationPasteBox');
       const text = input.value.trim();
       if (!text) {
@@ -1567,25 +1567,14 @@
           return;
         }
         if (/maps\.app\.goo\.gl|goo\.gl\/maps/i.test(text)) {
-          const btn = document.getElementById('locationPasteBtn');
-          btn.disabled = true;
-          const originalLabel = btn.innerText;
-          btn.innerText = 'Resolving…';
-          const result = await postToWebhook({ type: 'resolve_maps_link', url: text });
-          btn.disabled = false;
-          btn.innerText = originalLabel;
-          if (result.ok && result.lat != null && result.lng != null) {
-            applyPastedCoords({ lat: result.lat, lng: result.lng }, 'Coordinates resolved from the shared link.');
-          } else if (result.ok) {
-            // A "successful" response with no coordinates in it is the
-            // tell-tale sign of an older Code.gs still being live — it
-            // doesn't recognize this request type, so it silently falls
-            // through to its default (harmless, empty) behavior instead
-            // of returning an error.
-            showToast("Got a response, but no coordinates in it — this usually means the Code.gs update hasn't been redeployed yet (Deploy → Manage deployments → pencil icon → New version → Deploy).", 'error', 10000);
-          } else {
-            showToast(`Could not resolve that link (${result.reason || 'unknown error'}).`, 'error', 7000);
-          }
+          // Shortened links don't carry coordinates in their own text —
+          // only Google's server knows where they redirect to, so
+          // reading them requires a round trip through Apps Script. That
+          // path turned out to be more backend fragility than this
+          // convenience feature is worth, so it's intentionally not
+          // attempted here. Long-form links and Plus Codes still work
+          // entirely in the browser, no backend involved.
+          showToast("Shortened links (maps.app.goo.gl) aren't supported. In Google Maps, use \"Share\" and look for a longer link option, or share the Plus Code instead.", 'error', 8000);
           return;
         }
         showToast("Recognized this as a Maps link but couldn't find coordinates in it.", 'error', 6000);
