@@ -1499,29 +1499,7 @@
         };
       }
 
-      // Only supports the verified case: exactly 4 characters dropped
-      // from the front (the standard Google Maps short-code format).
-      // Returns null for anything else rather than guess.
-      function recoverNearest4(shortCode, refLat, refLng) {
-        const sepIndex = shortCode.indexOf(SEP);
-        const paddingLength = SEP_POS - sepIndex;
-        if (paddingLength !== 4) return null;
-        const resolution = Math.pow(20, 2 - (paddingLength / 2)); // = 1.0
-        const halfRes = resolution / 2;
-        const areaLat = Math.floor(refLat / resolution) * resolution;
-        const areaLng = Math.floor(refLng / resolution) * resolution;
-        const prefix = encode(areaLat, areaLng).replace(SEP, '').substring(0, paddingLength);
-        const fullGuess = prefix + shortCode.replace(SEP, '');
-        const d = decode(fullGuess);
-        let lat = d.latitudeCenter, lng = d.longitudeCenter;
-        if (refLat + halfRes < lat) lat -= resolution;
-        else if (refLat - halfRes > lat) lat += resolution;
-        if (refLng + halfRes < lng) lng -= resolution;
-        else if (refLng - halfRes > lng) lng += resolution;
-        return decode(encode(lat, lng, fullGuess.length));
-      }
-
-      return { encode, decode, recoverNearest4 };
+      return { encode, decode };
     })();
 
     // Strips a trailing place name Maps appends ("8QMF+HX Bengaluru,
@@ -1540,13 +1518,15 @@
         const d = OLC.decode(code);
         return { lat: d.latitudeCenter, lng: d.longitudeCenter };
       }
-      if (plusIndex === 4) {
-        const refLat = parseFloat(document.getElementById('vendorLat').value) || 13.5676849;
-        const refLng = parseFloat(document.getElementById('vendorLng').value) || 77.2289126;
-        const d = OLC.recoverNearest4(code, refLat, refLng);
-        if (!d) return { error: 'short_unsupported' };
-        return { lat: d.latitudeCenter, lng: d.longitudeCenter };
-      }
+      // Short (dropped-prefix) codes are deliberately NOT auto-recovered.
+      // Recovering one requires a reference point genuinely close to the
+      // real location — and the only candidate available here (whatever
+      // is currently sitting in Vendor Lat/Lng) could be a stale value
+      // from a completely different area. Tested concretely: with a
+      // reference 139km from the true location, recovery was 155km
+      // wrong. The decoder itself is accurate to ~30m with a proper
+      // reference — the risk is entirely in guessing that reference, so
+      // this doesn't guess.
       return { error: 'short_unsupported' };
     }
 
@@ -1596,8 +1576,15 @@
           btn.innerText = originalLabel;
           if (result.ok && result.lat != null && result.lng != null) {
             applyPastedCoords({ lat: result.lat, lng: result.lng }, 'Coordinates resolved from the shared link.');
+          } else if (result.ok) {
+            // A "successful" response with no coordinates in it is the
+            // tell-tale sign of an older Code.gs still being live — it
+            // doesn't recognize this request type, so it silently falls
+            // through to its default (harmless, empty) behavior instead
+            // of returning an error.
+            showToast("Got a response, but no coordinates in it — this usually means the Code.gs update hasn't been redeployed yet (Deploy → Manage deployments → pencil icon → New version → Deploy).", 'error', 10000);
           } else {
-            showToast(`Could not resolve that link (${result.reason || 'unknown error'}). Try pasting the Plus Code instead.`, 'error', 7000);
+            showToast(`Could not resolve that link (${result.reason || 'unknown error'}).`, 'error', 7000);
           }
           return;
         }
@@ -1611,7 +1598,7 @@
         return;
       }
       if (result && result.error === 'short_unsupported') {
-        showToast("That Plus Code is shortened more than this can safely recover. In Maps, look for the option to copy the full code, or share the link instead.", 'error', 8000);
+        showToast("Shortened Plus Codes (with a city name attached, like \"X3VQ+M73 Hassan\") can't be safely decoded without knowing roughly where you are — and this app has no reliable way to know that. Please paste the Maps link instead, or find the full Plus Code (no city name needed) if Maps offers it.", 'error', 9000);
         return;
       }
       showToast("Didn't recognize that as a Maps link or Plus Code.", 'error', 6000);
